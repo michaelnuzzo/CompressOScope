@@ -25,14 +25,16 @@ public:
 
     void audioIn(ofSoundBuffer & input);
     void changedMode(bool &mode);
-    void changedSampleRate(float &rate);
+    void changedSampleRate(int &rate);
     void changedBufferSize(int &rate);
     void froze(bool &frozen);
     void exit();
 
 private:
     ofxPanel gui;
-    ofxFloatField sampleRate;
+    ofxIntSlider input1Channel;
+    ofxIntSlider input2Channel;
+    ofxIntSlider sampleRate;
     ofxIntSlider bufferSize;
     ofxFloatSlider timeWidth;
     ofxToggle compressionMode;
@@ -40,12 +42,13 @@ private:
     ofxFloatSlider y_min;
     ofxToggle freeze;
 
-    vector <float> channel1;
-    vector <float> channel2;
+    vector <float> input1;
+    vector <float> input2;
     vector <float> volHistory;
 
     ofSoundStream soundStream;
     ofSoundStreamSettings settings;
+    ofSoundDevice device;
 
     int plotHeight;
     int plotWidth;
