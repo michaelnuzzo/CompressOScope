@@ -25,6 +25,7 @@ public:
 
     void audioIn(ofSoundBuffer & input);
     void changedMode(bool &mode);
+    void changedDevice(int &newDevice);
     void changedSampleRate(int &rate);
     void changedBufferSize(int &rate);
     void froze(bool &frozen);
@@ -34,6 +35,7 @@ private:
     ofxPanel gui;
     ofxIntSlider input1Channel;
     ofxIntSlider input2Channel;
+    ofxIntSlider audioDevice;
     ofxIntSlider sampleRate;
     ofxIntSlider bufferSize;
     ofxFloatSlider timeWidth;

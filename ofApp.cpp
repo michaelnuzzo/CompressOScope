@@ -35,16 +35,30 @@ void ofApp::changedMode(bool &mode)
     volHistory.clear();
 }
 // listener
+void ofApp::changedDevice(int &newDevice)
+{
+    soundStream.stop();
+    device = soundStream.getDeviceList().at(newDevice);
+    settings.setInDevice(device);
+    settings.setInListener(this);
+    settings.numOutputChannels = 0;
+    settings.numInputChannels = device.inputChannels;
+    soundStream.setup(settings);
+    input1Channel.setMax(device.inputChannels);
+    input2Channel.setMax(device.inputChannels);
+    sampleRate.setMax(device.sampleRates.size()-1);
+    input1Channel = 1;
+    input2Channel = 2;
+    sampleRate = 0;
+    volHistory.clear();
+}
+// listener
 void ofApp::changedSampleRate(int &rate)
 {
     settings.sampleRate = device.sampleRates.at(rate);
     soundStream.stop();
     soundStream.setup(settings);
     volHistory.clear();
-    std::stringstream stream;
-    stream << "Sample Rate: ";
-    stream << device.sampleRates.at(rate);
-    sampleRate.getParameter().setName(stream.str());
 }
 // listener
 void ofApp::changedBufferSize(int &size)
@@ -54,10 +68,6 @@ void ofApp::changedBufferSize(int &size)
     soundStream.stop();
     soundStream.setup(settings);
     volHistory.clear();
-    std::stringstream stream;
-    stream << "Buffer Size: ";
-    stream << val;
-    bufferSize.getParameter().setName(stream.str());
 }
 // listener
 void ofApp::froze(bool &frozen)
@@ -68,7 +78,7 @@ void ofApp::froze(bool &frozen)
 
 // this saves the gui state upon quitting the app
 void ofApp::exit() {
-    gui.saveToFile("settings.json");
+    gui.saveToFile("settings-2.json");
 }
 
 //--------------------------------------------------------------
@@ -86,17 +96,26 @@ void ofApp::setup(){
 
     volHistory.clear();
 
+    int deviceidx;
     for(int i = 0; i < soundStream.getDeviceList().size(); i++)
         if(soundStream.getDeviceList().at(i).isDefaultInput)
+        {
             device = soundStream.getDeviceList().at(i);
+            deviceidx = i;
+        }
     settings.setInDevice(device);
 
     // set up the gui and add event listeners
     gui.setup("Controls","settings.json");
-    gui.add(sampleRate.setup("Sample Rate",0,0,device.sampleRates.size()-1));
+    gui.add(audioDevice.setup("Audio Device Selector",deviceidx,0,soundStream.getDeviceList().size()-1));
+    audioDevice.addListener(this, &ofApp::changedDevice);
+    audioDevice.setUpdateOnReleaseOnly(true);
+    gui.add(sampleRate.setup("Sample Rate Selector",0,0,device.sampleRates.size()-1));
     sampleRate.addListener(this, &ofApp::changedSampleRate);
-    gui.add(bufferSize.setup("Buffer Size (2^n)",6,6,11));
+    sampleRate.setUpdateOnReleaseOnly(true);
+    gui.add(bufferSize.setup("Buffer Size",6,6,11));
     bufferSize.addListener(this, &ofApp::changedBufferSize);
+    bufferSize.setUpdateOnReleaseOnly(true);
     gui.add(timeWidth.setup("time (s)",2.5,0.01,5));
     gui.add(compressionMode.setup("Compression Analysis",false));
     compressionMode.addListener(this, &ofApp::changedMode);
@@ -114,8 +133,8 @@ void ofApp::setup(){
     settings.numInputChannels = device.inputChannels;
     soundStream.setup(settings);
 
-    gui.loadFromFile("settings.json");
-    
+    gui.loadFromFile("settings-2.json");
+
 }
 
 //--------------------------------------------------------------
@@ -179,6 +198,11 @@ void ofApp::draw(){
         ofPopMatrix();
     ofPopStyle();
     gui.draw();
+    ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, 220, 44);
+    ofDrawBitmapString(device.sampleRates.at(sampleRate), 220, 64);
+    ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), 220, 84);
+
+
 }
 
 //--------------------------------------------------------------
