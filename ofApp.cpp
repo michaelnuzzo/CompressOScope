@@ -87,14 +87,25 @@ void ofApp::setup(){
     ofSetVerticalSync(true);
     ofBackground(54, 54, 54);
 
+    if(!ofDirectory::doesDirectoryExist("../Resources/data"))
+    {
+        ofDirectory::createDirectory("../Resources/data");
+    }
+
     // to store data within the .app
-    ofSetDataPathRoot("../Resources/data/");
+    ofSetDataPathRoot("../Resources/data");
+
+    if(!ofFile::doesFileExist("settings.json"))
+        gui.saveToFile("settings.json");
+    if(!ofFile::doesFileExist("settings-2.json"))
+        gui.saveToFile("settings-2.json");
 
     // custom plot dimensions
     plotHeight = ofGetHeight()/2.;
     plotWidth = ofGetWidth()*0.93;
 
     volHistory.clear();
+
 
     int deviceidx;
     for(int i = 0; i < soundStream.getDeviceList().size(); i++)
