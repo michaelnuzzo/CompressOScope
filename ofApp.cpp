@@ -151,9 +151,6 @@ void ofApp::setup(){
 //--------------------------------------------------------------
 // this is the real-time graphics loop
 void ofApp::update(){
-    //if we are bigger the the size we want to record - lets drop the oldest value
-    while( volHistory.size() >= plotWidth)
-        volHistory.erase(volHistory.begin(), volHistory.begin()+1);
 }
 
 //--------------------------------------------------------------
@@ -164,56 +161,67 @@ void ofApp::draw(){
     ofNoFill();
 
     // draw the plot
-    ofPushStyle();
-        ofPushMatrix();
-            ofTranslate(ofGetWidth()-plotWidth-ofGetWidth()/200., 1.2*ofGetHeight()/2.-plotHeight/2.);
-            ofDrawRectangle(0, 0, plotWidth, plotHeight);
-            // draw the waveform
-            ofBeginShape();
-                for (unsigned int i = 0; i < volHistory.size(); i++)
-                {
-                    if(compressionMode)
-                        ofVertex(i, ofMap(toDb(volHistory[i]),-y_max,-y_min,0,plotHeight,true)); // compressor gain
-                    else
-                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i]*plotHeight,0,plotHeight));
-
-                }
-            ofEndShape(false);
-            // x-axis
-            ofDrawBitmapString("Time (s)", plotWidth/2.-20, plotHeight+48);
-            ofDrawBitmapString("0", plotWidth-8, plotHeight+20);
-            ofDrawBitmapString(format_number(timeWidth/4.), 3*plotWidth/4.-35, plotHeight+20);
-            ofDrawBitmapString(format_number(timeWidth/2.), plotWidth/2.-35, plotHeight+20);
-            ofDrawBitmapString(format_number(3*timeWidth/4.), plotWidth/4.-35, plotHeight+20);
-            ofDrawBitmapString(format_number(timeWidth), -35, plotHeight+20);
-
-            // y-axis
+    ofPushMatrix();
+        ofTranslate(ofGetWidth()-plotWidth-ofGetWidth()/200., 1.2*ofGetHeight()/2.-plotHeight/2.);
+        ofDrawRectangle(0, 0, plotWidth, plotHeight);
+        // draw the waveform
             if(compressionMode)
             {
-                ofDrawBitmapString("Gain (dB)", -15, -15);
-                ofDrawBitmapString(format_number(y_max), -60, 5);
-                ofDrawBitmapString(format_number(2*y_max/3.+y_min/3.), -60, plotHeight/3.+5);
-                ofDrawBitmapString(format_number(y_max/3.+2*y_min/3.), -60, 2*plotHeight/3.+5);
-                ofDrawBitmapString(format_number(y_min), -60, plotHeight+5);
+                ofBeginShape();
+                for (unsigned int i = 0; i < volHistory.size(); i++)
+                        ofVertex(i, ofMap(toDb(volHistory[i].first/volHistory[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
+                ofEndShape(false);
             }
             else
             {
-                ofDrawBitmapString("Magnitude", -15, -15);
-                ofDrawBitmapString(format_number(1), -60, 5);
-                ofDrawBitmapString(format_number(0.5), -60, plotHeight/4.+5);
-                ofDrawBitmapString(format_number(0), -60, plotHeight/2.+5);
-                ofDrawBitmapString(format_number(-0.5), -60, 3*plotHeight/4.+5);
-                ofDrawBitmapString(format_number(-1), -60, plotHeight+5);
+                ofPushStyle();
+                    ofSetColor(225,127,127);
+                    ofBeginShape();
+                    for (unsigned int i = 0; i < volHistory.size(); i++)
+                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].first*plotHeight,0,plotHeight));
+                    ofEndShape(false);
+
+                    ofSetColor(127,127,225);
+                    ofBeginShape();
+                    for (unsigned int i = 0; i < volHistory.size(); i++)
+                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].second*plotHeight,0,plotHeight));
+                    ofEndShape(false);
+                ofPopStyle();
             }
 
-        ofPopMatrix();
-    ofPopStyle();
+        // x-axis
+        ofDrawBitmapString("Time (s)", plotWidth/2.-20, plotHeight+48);
+        ofDrawBitmapString("0", plotWidth-8, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth/4.), 3*plotWidth/4.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth/2.), plotWidth/2.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(3*timeWidth/4.), plotWidth/4.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth), -35, plotHeight+20);
+
+        // y-axis
+        if(compressionMode)
+        {
+            ofDrawBitmapString("Gain (dB)", -15, -15);
+            ofDrawBitmapString(format_number(y_max), -60, 5);
+            ofDrawBitmapString(format_number(2*y_max/3.+y_min/3.), -60, plotHeight/3.+5);
+            ofDrawBitmapString(format_number(y_max/3.+2*y_min/3.), -60, 2*plotHeight/3.+5);
+            ofDrawBitmapString(format_number(y_min), -60, plotHeight+5);
+        }
+        else
+        {
+            ofDrawBitmapString("Magnitude", -15, -15);
+            ofDrawBitmapString(format_number(1), -60, 5);
+            ofDrawBitmapString(format_number(0.5), -60, plotHeight/4.+5);
+            ofDrawBitmapString(format_number(0), -60, plotHeight/2.+5);
+            ofDrawBitmapString(format_number(-0.5), -60, 3*plotHeight/4.+5);
+            ofDrawBitmapString(format_number(-1), -60, plotHeight+5);
+        }
+    ofPopMatrix();
     gui.draw();
     ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, 220, 44);
     ofDrawBitmapString(device.sampleRates.at(sampleRate), 220, 64);
     ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), 220, 84);
 
-
+//    std::cout << volHistory.size() << std::endl;
 }
 
 //--------------------------------------------------------------
@@ -223,29 +231,28 @@ void ofApp::audioIn(ofSoundBuffer & input){
         for (size_t i = 0; i < input.getNumFrames(); i++)
         {
             input1.push_back(input[i*device.inputChannels+(input1Channel-1)]);
-            if(compressionMode)
-                input2.push_back(input[i*device.inputChannels+input2Channel-1]);
+            input2.push_back(input[i*device.inputChannels+input2Channel-1]);
 
             // fill according to time window specification
             if(input1.size() > 2*timeWidth*input.getSampleRate()/ofGetWidth())
             {
                 // need to find max and min vals to display zoomed-out info
                 std::vector<float> selections1 = findMaxAndMin(input1,2);
-                std::vector<float> selections2;
-                if(compressionMode)
-                    selections2 = findMaxAndMin(input2,2);
+                std::vector<float> selections2 = findMaxAndMin(input2,2);
                 // record the max and min info
-                for(int j = 0; j < selections1.size(); j++)
-                    if(compressionMode)
-                        volHistory.push_back(selections1[j]/selections2[j]);
-                    else
-                        volHistory.push_back(selections1[j]);
+                for(int j = 0; j < 2; j++)
+                    volHistory.push_back(std::make_pair(selections1[j],selections2[j]));
+
+                //if we are bigger the the size we want to record - lets drop the oldest value
+                if( volHistory.size() >= plotWidth)
+                    volHistory.erase(volHistory.begin(), volHistory.begin()+2);
 
                 input1.clear();
-                if(compressionMode)
-                    input2.clear();
+                input2.clear();
             }
         }
+
+
 }
 
 

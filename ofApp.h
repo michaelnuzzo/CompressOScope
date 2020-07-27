@@ -46,7 +46,7 @@ private:
 
     vector <float> input1;
     vector <float> input2;
-    vector <float> volHistory;
+    vector <std::pair<float,float> > volHistory;
 
     ofSoundStream soundStream;
     ofSoundStreamSettings settings;
