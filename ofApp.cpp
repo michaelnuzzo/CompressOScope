@@ -32,6 +32,17 @@ float toMag(float num)
 // listener
 void ofApp::changedMode(bool &mode)
 {
+    if(mode)
+    {
+        guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(0,0,0));
+        guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(0,0,0));
+    }
+    else
+    {
+        guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(255,127,127));
+        guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(127,127,255));
+    }
+
     volHistory.clear();
 }
 // listener
@@ -77,8 +88,10 @@ void ofApp::froze(bool &frozen)
 }
 
 // this saves the gui state upon quitting the app
-void ofApp::exit() {
-    gui.saveToFile("settings-2.json");
+void ofApp::exit()
+{
+    guiLeft.saveToFile("settings-autosave-left.xml");
+    guiRight.saveToFile("settings-autosave-right.xml");
 }
 
 //--------------------------------------------------------------
@@ -87,25 +100,26 @@ void ofApp::setup(){
     ofSetVerticalSync(true);
     ofBackground(54, 54, 54);
 
-    if(!ofDirectory::doesDirectoryExist("../Resources/data"))
-    {
-        ofDirectory::createDirectory("../Resources/data");
-    }
-
     // to store data within the .app
-    ofSetDataPathRoot("../Resources/data");
+    ofSetDataPathRoot(".");
+    if(!ofDirectory::doesDirectoryExist("gui-settings"))
+        ofDirectory::createDirectory("gui-settings");
+    ofSetDataPathRoot("gui-settings");
 
-    if(!ofFile::doesFileExist("settings.json"))
-        gui.saveToFile("settings.json");
-    if(!ofFile::doesFileExist("settings-2.json"))
-        gui.saveToFile("settings-2.json");
+    if(!ofFile::doesFileExist("settings-manualsave-left.xml"))
+        guiLeft.saveToFile("settings-manualsave-left.xml");
+    if(!ofFile::doesFileExist("settings-autosave-left.xml"))
+        guiLeft.saveToFile("settings-autosave-left.xml");
+    if(!ofFile::doesFileExist("settings-manualsave-right.xml"))
+        guiRight.saveToFile("settings-manualsave-right.xml");
+    if(!ofFile::doesFileExist("settings-autosave-right.xml"))
+        guiRight.saveToFile("settings-autosave-right.xml");
 
     // custom plot dimensions
     plotHeight = ofGetHeight()/2.;
     plotWidth = ofGetWidth()*0.93;
 
     volHistory.clear();
-
 
     int deviceidx;
     for(int i = 0; i < soundStream.getDeviceList().size(); i++)
@@ -117,25 +131,41 @@ void ofApp::setup(){
     settings.setInDevice(device);
 
     // set up the gui and add event listeners
-    gui.setup("Controls","settings.json");
-    gui.add(audioDevice.setup("Audio Device Selector",deviceidx,0,soundStream.getDeviceList().size()-1));
+    audioInterface.add(audioDevice.set("Audio Device Selector",deviceidx,0,soundStream.getDeviceList().size()-1));
     audioDevice.addListener(this, &ofApp::changedDevice);
-    audioDevice.setUpdateOnReleaseOnly(true);
-    gui.add(sampleRate.setup("Sample Rate Selector",0,0,device.sampleRates.size()-1));
+    audioInterface.add(sampleRate.set("Sample Rate Selector",0,0,device.sampleRates.size()-1));
     sampleRate.addListener(this, &ofApp::changedSampleRate);
-    sampleRate.setUpdateOnReleaseOnly(true);
-    gui.add(bufferSize.setup("Buffer Size",6,6,11));
+    audioInterface.add(bufferSize.set("Buffer Size",6,6,11));
     bufferSize.addListener(this, &ofApp::changedBufferSize);
-    bufferSize.setUpdateOnReleaseOnly(true);
-    gui.add(timeWidth.setup("time (s)",2.5,0.01,5));
-    gui.add(compressionMode.setup("Compression Analysis",false));
+    channels.add(input1Channel.set("Reference Channel",1,1,device.inputChannels));
+    channels.add(input2Channel.set("Divisor Channel",2,1,device.inputChannels));
+    mainControls.add(timeWidth.set("time (s)",2.5,0.01,5));
+    compressionControls.add(compressionMode.set("Compression Analysis",false));
     compressionMode.addListener(this, &ofApp::changedMode);
-    gui.add(y_max.setup("Y max (dB)",0,-200,20));
-    gui.add(y_min.setup("Y min (dB)",-60,-200,20));
-    gui.add(input1Channel.setup("Reference Channel",1,1,device.inputChannels));
-    gui.add(input2Channel.setup("Divisor Channel",2,1,device.inputChannels));
-    gui.add(freeze.setup("Freeze",false));
+    compressionControls.add(y_max.set("Y max (dB)",0,-200,20));
+    compressionControls.add(y_min.set("Y min (dB)",-60,-200,20));
+    mainControls.add(freeze.set("Freeze",false));
     freeze.addListener(this, &ofApp::froze);
+
+    audioInterface.setName("Audio Interface");
+    collectorLeft.add(audioInterface);
+    channels.setName("Channels");
+    collectorLeft.add(channels);
+    mainControls.setName("Main");
+    collectorRight.add(mainControls);
+    compressionControls.setName("Compression Mode");
+    collectorRight.add(compressionControls);
+
+
+    guiLeft.setup(collectorLeft,"settings-manualsave-left.xml");
+    guiRight.setup(collectorRight,"settings-manualsave-right.xml");
+    guiRight.setPosition(ofGetWidth()-guiRight.getWidth()-10,10);
+
+    guiLeft.getGroup("Audio Interface").getIntSlider("Audio Device Selector").setUpdateOnReleaseOnly(true);
+    guiLeft.getGroup("Audio Interface").getIntSlider("Sample Rate Selector").setUpdateOnReleaseOnly(true);
+    guiLeft.getGroup("Audio Interface").getIntSlider("Buffer Size").setUpdateOnReleaseOnly(true);
+    guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(255,127,127));
+    guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(127,127,255));
 
 
     // set up the initial settings of the audio device
@@ -144,7 +174,8 @@ void ofApp::setup(){
     settings.numInputChannels = device.inputChannels;
     soundStream.setup(settings);
 
-    gui.loadFromFile("settings-2.json");
+    guiLeft.loadFromFile("settings-autosave-left.xml");
+    guiRight.loadFromFile("settings-autosave-right.xml");
 
 }
 
@@ -216,12 +247,15 @@ void ofApp::draw(){
             ofDrawBitmapString(format_number(-1), -60, plotHeight+5);
         }
     ofPopMatrix();
-    gui.draw();
-    ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, 220, 44);
-    ofDrawBitmapString(device.sampleRates.at(sampleRate), 220, 64);
-    ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), 220, 84);
 
-//    std::cout << volHistory.size() << std::endl;
+    if(!guiLeft.getGroup("Audio Interface").isMinimized())
+    {
+        ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, guiLeft.getPosition().x+210, guiLeft.getPosition().y+57);
+        ofDrawBitmapString(device.sampleRates.at(sampleRate), guiLeft.getPosition().x+210, guiLeft.getPosition().y+76);
+        ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), guiLeft.getPosition().x+210, guiLeft.getPosition().y+95);
+    }
+    guiLeft.draw();
+    guiRight.draw();
 }
 
 //--------------------------------------------------------------
@@ -251,8 +285,6 @@ void ofApp::audioIn(ofSoundBuffer & input){
                 input2.clear();
             }
         }
-
-
 }
 
 

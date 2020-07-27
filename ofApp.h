@@ -32,17 +32,26 @@ public:
     void exit();
 
 private:
-    ofxPanel gui;
-    ofxIntSlider input1Channel;
-    ofxIntSlider input2Channel;
-    ofxIntSlider audioDevice;
-    ofxIntSlider sampleRate;
-    ofxIntSlider bufferSize;
-    ofxFloatSlider timeWidth;
-    ofxToggle compressionMode;
-    ofxFloatSlider y_max;
-    ofxFloatSlider y_min;
-    ofxToggle freeze;
+
+    ofxPanel guiLeft;
+    ofxPanel guiRight;
+    ofParameterGroup audioInterface;
+    ofParameterGroup channels;
+    ofParameterGroup mainControls;
+    ofParameterGroup compressionControls;
+    ofParameterGroup collectorLeft;
+    ofParameterGroup collectorRight;
+
+    ofParameter<int> audioDevice;
+    ofParameter<int> sampleRate;
+    ofParameter<int> bufferSize;
+    ofParameter<int> input1Channel;
+    ofParameter<int> input2Channel;
+    ofParameter<float> timeWidth;
+    ofParameter<bool> compressionMode;
+    ofParameter<float> y_max;
+    ofParameter<float> y_min;
+    ofParameter<bool> freeze;
 
     vector <float> input1;
     vector <float> input2;
