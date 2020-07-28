@@ -32,15 +32,43 @@ float toMag(float num)
 // listener
 void ofApp::changedMode(bool &mode)
 {
+    auto& refCh = guiLeft.getGroup("Channels").getIntSlider("Reference Channel");
+    auto& divCh = guiLeft.getGroup("Channels").getIntSlider("Divisor Channel");
+    auto& refGain = guiLeft.getGroup("Channels").getFloatSlider("Ref. Gain (dB)");
+    auto& divGain = guiLeft.getGroup("Channels").getFloatSlider("Div. Gain (dB)");
+    auto& yMax = guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)");
+    auto& yMin = guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)");
+
+
     if(mode)
     {
-        guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(0,0,0));
-        guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(0,0,0));
+        refGain.setBackgroundColor(black);
+        refGain.setTextColor(black);
+        refGain.setFillColor(black);
+        divGain.setBackgroundColor(black);
+        divGain.setTextColor(black);
+        divGain.setFillColor(black);
+        yMax.setBackgroundColor(black);
+        yMax.setTextColor(white);
+        yMax.setFillColor(gray);
+        yMin.setBackgroundColor(black);
+        yMin.setTextColor(white);
+        yMin.setFillColor(gray);
     }
     else
     {
-        guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(255,127,127));
-        guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(127,127,255));
+        refGain.setBackgroundColor(black);
+        refGain.setTextColor(white);
+        refGain.setFillColor(gray);
+        divGain.setBackgroundColor(black);
+        divGain.setTextColor(white);
+        divGain.setFillColor(gray);
+        yMax.setBackgroundColor(black);
+        yMax.setTextColor(black);
+        yMax.setFillColor(black);
+        yMin.setBackgroundColor(black);
+        yMin.setTextColor(black);
+        yMin.setFillColor(black);
     }
 
     volHistory.clear();
@@ -60,6 +88,8 @@ void ofApp::changedDevice(int &newDevice)
     sampleRate.setMax(device.sampleRates.size()-1);
     input1Channel = 1;
     input2Channel = 2;
+    ch1Gain = 0;
+    ch2Gain = 0;
     sampleRate = 0;
     volHistory.clear();
 }
@@ -139,6 +169,8 @@ void ofApp::setup(){
     bufferSize.addListener(this, &ofApp::changedBufferSize);
     channels.add(input1Channel.set("Reference Channel",1,1,device.inputChannels));
     channels.add(input2Channel.set("Divisor Channel",2,1,device.inputChannels));
+    channels.add(ch1Gain.set("Ref. Gain (dB)",0,0,120));
+    channels.add(ch2Gain.set("Div. Gain (dB)",0,0,120));
     mainControls.add(timeWidth.set("time (s)",2.5,0.01,5));
     compressionControls.add(compressionMode.set("Compression Analysis",false));
     compressionMode.addListener(this, &ofApp::changedMode);
@@ -156,7 +188,6 @@ void ofApp::setup(){
     compressionControls.setName("Compression Mode");
     collectorRight.add(compressionControls);
 
-
     guiLeft.setup(collectorLeft,"settings-manualsave-left.xml");
     guiRight.setup(collectorRight,"settings-manualsave-right.xml");
     guiRight.setPosition(ofGetWidth()-guiRight.getWidth()-10,10);
@@ -164,9 +195,10 @@ void ofApp::setup(){
     guiLeft.getGroup("Audio Interface").getIntSlider("Audio Device Selector").setUpdateOnReleaseOnly(true);
     guiLeft.getGroup("Audio Interface").getIntSlider("Sample Rate Selector").setUpdateOnReleaseOnly(true);
     guiLeft.getGroup("Audio Interface").getIntSlider("Buffer Size").setUpdateOnReleaseOnly(true);
-    guiLeft.getGroup("Channels").getIntSlider("Reference Channel").setBackgroundColor(ofColor(255,127,127));
-    guiLeft.getGroup("Channels").getIntSlider("Divisor Channel").setBackgroundColor(ofColor(127,127,255));
-
+    guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)").setTextColor(black);
+    guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)").setFillColor(black);
+    guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)").setTextColor(black);
+    guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)").setFillColor(black);
 
     // set up the initial settings of the audio device
     settings.setInListener(this);
@@ -176,7 +208,6 @@ void ofApp::setup(){
 
     guiLeft.loadFromFile("settings-autosave-left.xml");
     guiRight.loadFromFile("settings-autosave-right.xml");
-
 }
 
 //--------------------------------------------------------------
@@ -188,7 +219,7 @@ void ofApp::update(){
 // this is (also) the real-time graphics loop
 void ofApp::draw(){
 
-    ofSetColor(225);
+    ofSetColor(lightgray);
     ofNoFill();
 
     // draw the plot
@@ -196,29 +227,31 @@ void ofApp::draw(){
         ofTranslate(ofGetWidth()-plotWidth-ofGetWidth()/200., 1.2*ofGetHeight()/2.-plotHeight/2.);
         ofDrawRectangle(0, 0, plotWidth, plotHeight);
         // draw the waveform
-            if(compressionMode)
-            {
-                ofBeginShape();
-                for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofMap(toDb(volHistory[i].first/volHistory[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
-                ofEndShape(false);
-            }
-            else
-            {
-                ofPushStyle();
-                    ofSetColor(225,127,127);
+            ofPushStyle();
+                if(compressionMode)
+                {
+                    ofSetColor(green);
                     ofBeginShape();
                     for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].first*plotHeight,0,plotHeight));
+                        ofVertex(i, ofMap(toDb(volHistory[i].first/volHistory[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
+                    ofEndShape(false);
+                }
+                else
+                {
+                    ofSetColor(red);
+                    ofBeginShape();
+                    for (unsigned int i = 0; i < volHistory.size(); i++)
+                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].first*plotHeight*toMag(ch1Gain),0,plotHeight));
                     ofEndShape(false);
 
-                    ofSetColor(127,127,225);
+                    ofSetColor(blue);
                     ofBeginShape();
                     for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].second*plotHeight,0,plotHeight));
+                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].second*plotHeight*toMag(ch2Gain),0,plotHeight));
                     ofEndShape(false);
-                ofPopStyle();
-            }
+                }
+            ofPopStyle();
+
 
         // x-axis
         ofDrawBitmapString("Time (s)", plotWidth/2.-20, plotHeight+48);
@@ -250,10 +283,45 @@ void ofApp::draw(){
 
     if(!guiLeft.getGroup("Audio Interface").isMinimized())
     {
-        ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, guiLeft.getPosition().x+210, guiLeft.getPosition().y+57);
-        ofDrawBitmapString(device.sampleRates.at(sampleRate), guiLeft.getPosition().x+210, guiLeft.getPosition().y+76);
-        ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), guiLeft.getPosition().x+210, guiLeft.getPosition().y+95);
+        auto& devSel = guiLeft.getGroup("Audio Interface").getIntSlider("Audio Device Selector");
+        auto& splSel = guiLeft.getGroup("Audio Interface").getIntSlider("Sample Rate Selector");
+        auto& bufSel = guiLeft.getGroup("Audio Interface").getIntSlider("Buffer Size");
+
+        ofDrawBitmapString(soundStream.getDeviceList().at(audioDevice).name, devSel.getPosition().x+guiLeft.getWidth()+5, devSel.getPosition().y+14);
+        ofDrawBitmapString(device.sampleRates.at(sampleRate), splSel.getPosition().x+guiLeft.getWidth()+5, splSel.getPosition().y+14);
+        ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), bufSel.getPosition().x+guiLeft.getWidth()+5, bufSel.getPosition().y+14);
     }
+    if(!guiLeft.getGroup("Channels").isMinimized() && !compressionMode)
+    {
+        auto& refCh = guiLeft.getGroup("Channels").getIntSlider("Reference Channel");
+        auto& divCh = guiLeft.getGroup("Channels").getIntSlider("Divisor Channel");
+        auto& refGain = guiLeft.getGroup("Channels").getFloatSlider("Ref. Gain (dB)");
+        auto& divGain = guiLeft.getGroup("Channels").getFloatSlider("Div. Gain (dB)");
+
+        ofPushStyle();
+            ofFill();
+            ofSetColor(red);
+            ofDrawRectangle(refCh.getPosition().x+guiLeft.getWidth()+5, refCh.getPosition().y+5, 10, 10);
+            ofDrawRectangle(refGain.getPosition().x+guiLeft.getWidth()+5, refGain.getPosition().y+5, 10, 10);
+
+            ofSetColor(blue);
+            ofDrawRectangle(divCh.getPosition().x+guiLeft.getWidth()+5, divCh.getPosition().y+5, 10, 10);
+            ofDrawRectangle(divGain.getPosition().x+guiLeft.getWidth()+5, divGain.getPosition().y+5, 10, 10);
+        ofPopStyle();
+    }
+    if(!guiRight.getGroup("Compression Mode").isMinimized() && compressionMode)
+    {
+        auto& yMax = guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)");
+        auto& yMin = guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)");
+
+        ofPushStyle();
+            ofFill();
+            ofSetColor(green);
+            ofDrawRectangle(yMax.getPosition().x-23, yMax.getPosition().y+5, 10, 10);
+            ofDrawRectangle(yMin.getPosition().x-23, yMin.getPosition().y+5, 10, 10);
+        ofPopStyle();
+    }
+
     guiLeft.draw();
     guiRight.draw();
 }

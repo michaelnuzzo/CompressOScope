@@ -47,6 +47,8 @@ private:
     ofParameter<int> bufferSize;
     ofParameter<int> input1Channel;
     ofParameter<int> input2Channel;
+    ofParameter<float> ch1Gain;
+    ofParameter<float> ch2Gain;
     ofParameter<float> timeWidth;
     ofParameter<bool> compressionMode;
     ofParameter<float> y_max;
@@ -60,6 +62,16 @@ private:
     ofSoundStream soundStream;
     ofSoundStreamSettings settings;
     ofSoundDevice device;
+
+    ofColor black = ofColor(0,0,0);
+    ofColor white = ofColor(255,255,255);
+    ofColor lightgray = ofColor(225,225,225);
+    ofColor gray = ofColor(127,127,127);
+    ofColor red = ofColor(225,127,127);
+    ofColor blue = ofColor(127,127,225);
+    ofColor green = ofColor(87,185,87);
+
+
 
     int plotHeight;
     int plotWidth;
