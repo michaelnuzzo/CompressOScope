@@ -1,21 +1,29 @@
  #include "ofApp.h"
 
 // find max and min value in passed in audio chunk
-std::vector<float> findMaxAndMin(std::vector<float> audioFrame,int numSelections)
+std::vector<float> findMaxAndMin(std::vector<float> audioFrame,int numSelections, int size = -1)
 {
     std::vector<float> selections;
-    for(int i = 0; i < numSelections; i++)
-        if(i%2==0)
-            selections.push_back(*max_element(std::begin(audioFrame), std::end(audioFrame)));
-        else
-            selections.push_back(*min_element(std::begin(audioFrame), std::end(audioFrame)));
+    if(size == -1)
+        size = audioFrame.size();
+    else if (size == 0 || size > audioFrame.size())
+        for(int i = 0; i < numSelections; i++)
+            selections.push_back(0);
+    else if(size > 0)
+    {
+        for(int i = 0; i < numSelections; i++)
+            if(i%2==0)
+                selections.push_back(*max_element(audioFrame.begin(), audioFrame.begin()+size));
+            else
+                selections.push_back(*min_element(audioFrame.begin(), audioFrame.begin()+size));
+    }
     return selections;
 }
 // format the axis numbers
-std::string format_number(float num)
+std::string format_number(float num, int precis = 2)
 {
     std::stringstream stream;
-    stream << std::right << std::setw(6) << std::fixed << std::setprecision(2) << num;
+    stream << std::right << std::setw(6) << std::fixed << std::setprecision(precis) << num;
     return stream.str();
 }
 // convert to decibels
@@ -30,7 +38,7 @@ float toMag(float num)
 }
 
 // listener
-void ofApp::changedMode(bool &mode)
+void ofApp::changedCompMode(bool &isOn)
 {
     auto& refCh = guiLeft.getGroup("Channels").getIntSlider("Reference Channel");
     auto& divCh = guiLeft.getGroup("Channels").getIntSlider("Divisor Channel");
@@ -39,8 +47,7 @@ void ofApp::changedMode(bool &mode)
     auto& yMax = guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)");
     auto& yMin = guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)");
 
-
-    if(mode)
+    if(isOn)
     {
         refGain.setBackgroundColor(black);
         refGain.setTextColor(black);
@@ -70,7 +77,6 @@ void ofApp::changedMode(bool &mode)
         yMin.setTextColor(black);
         yMin.setFillColor(black);
     }
-
     volHistory.clear();
 }
 // listener
@@ -111,6 +117,11 @@ void ofApp::changedBufferSize(int &size)
     volHistory.clear();
 }
 // listener
+void ofApp::changedOffset(float &offset)
+{
+    setInputs = true;
+}
+// listener
 void ofApp::froze(bool &frozen)
 {
     if(!frozen)
@@ -128,7 +139,7 @@ void ofApp::exit()
 // this sets up the application
 void ofApp::setup(){
     ofSetVerticalSync(true);
-    ofBackground(54, 54, 54);
+    ofBackground(darkgray);
 
     // to store data within the .app
     ofSetDataPathRoot(".");
@@ -172,8 +183,10 @@ void ofApp::setup(){
     channels.add(ch1Gain.set("Ref. Gain (dB)",0,0,120));
     channels.add(ch2Gain.set("Div. Gain (dB)",0,0,120));
     mainControls.add(timeWidth.set("time (s)",2.5,0.01,5));
+    mainControls.add(offset.set("offset (ms)",0,-10,10));
+    offset.addListener(this, &ofApp::changedOffset);
     compressionControls.add(compressionMode.set("Compression Analysis",false));
-    compressionMode.addListener(this, &ofApp::changedMode);
+    compressionMode.addListener(this, &ofApp::changedCompMode);
     compressionControls.add(y_max.set("Y max (dB)",0,-200,20));
     compressionControls.add(y_min.set("Y min (dB)",-60,-200,20));
     mainControls.add(freeze.set("Freeze",false));
@@ -211,16 +224,19 @@ void ofApp::setup(){
 }
 
 //--------------------------------------------------------------
-// this is the real-time graphics loop
 void ofApp::update(){
+
 }
 
 //--------------------------------------------------------------
-// this is (also) the real-time graphics loop
+// this is the real-time graphics loop
 void ofApp::draw(){
+
 
     ofSetColor(lightgray);
     ofNoFill();
+
+    std::vector<std::pair<float,float>> values = volHistory; // a sad attempt to be more threadsafe...
 
     // draw the plot
     ofPushMatrix();
@@ -232,22 +248,22 @@ void ofApp::draw(){
                 {
                     ofSetColor(green);
                     ofBeginShape();
-                    for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofMap(toDb(volHistory[i].first/volHistory[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
+                    for (unsigned int i = 0; i < values.size(); i++)
+                        ofVertex(i, ofMap(toDb(values[i].first/values[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
                     ofEndShape(false);
                 }
                 else
                 {
                     ofSetColor(red);
                     ofBeginShape();
-                    for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].first*plotHeight*toMag(ch1Gain),0,plotHeight));
+                    for (unsigned int i = 0; i < values.size(); i++)
+                        ofVertex(i, ofClamp(plotHeight/2.-values[i].first*plotHeight*toMag(ch1Gain),0,plotHeight));
                     ofEndShape(false);
 
                     ofSetColor(blue);
                     ofBeginShape();
-                    for (unsigned int i = 0; i < volHistory.size(); i++)
-                        ofVertex(i, ofClamp(plotHeight/2.-volHistory[i].second*plotHeight*toMag(ch2Gain),0,plotHeight));
+                    for (unsigned int i = 0; i < values.size(); i++)
+                        ofVertex(i, ofClamp(plotHeight/2.-values[i].second*plotHeight*toMag(ch2Gain),0,plotHeight));
                     ofEndShape(false);
                 }
             ofPopStyle();
@@ -256,10 +272,10 @@ void ofApp::draw(){
         // x-axis
         ofDrawBitmapString("Time (s)", plotWidth/2.-20, plotHeight+48);
         ofDrawBitmapString("0", plotWidth-8, plotHeight+20);
-        ofDrawBitmapString(format_number(timeWidth/4.), 3*plotWidth/4.-35, plotHeight+20);
-        ofDrawBitmapString(format_number(timeWidth/2.), plotWidth/2.-35, plotHeight+20);
-        ofDrawBitmapString(format_number(3*timeWidth/4.), plotWidth/4.-35, plotHeight+20);
-        ofDrawBitmapString(format_number(timeWidth), -35, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth/4.,3), 3*plotWidth/4.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth/2.,3), plotWidth/2.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(3*timeWidth/4.,3), plotWidth/4.-35, plotHeight+20);
+        ofDrawBitmapString(format_number(timeWidth,3), -35, plotHeight+20);
 
         // y-axis
         if(compressionMode)
@@ -321,6 +337,12 @@ void ofApp::draw(){
             ofDrawRectangle(yMin.getPosition().x-23, yMin.getPosition().y+5, 10, 10);
         ofPopStyle();
     }
+    if(!guiRight.getGroup("Main").isMinimized() && int(offset/1000.*soundStream.getSampleRate()) != 0)
+    {
+        auto& off = guiRight.getGroup("Main").getFloatSlider("offset (ms)");
+
+        ofDrawBitmapString(to_string(int(offset/1000.*soundStream.getSampleRate()))+" samples", off.getPosition().x-115, off.getPosition().y+14);
+    }
 
     guiLeft.draw();
     guiRight.draw();
@@ -329,18 +351,40 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 // this is the real-time audio loop
 void ofApp::audioIn(ofSoundBuffer & input){
+
+    if(setInputs)
+    {
+        input1.clear();
+        input2.clear();
+
+        if(offset < 0)
+            input1.assign(int(abs(2*offset/1000.*soundStream.getSampleRate())),0);
+        else if(offset > 0)
+            input2.assign(int(abs(2*offset/1000.*soundStream.getSampleRate())),0);
+        setInputs = false;
+
+    }
+
+    int timeSlice = 1+timeWidth*input.getSampleRate()/ofGetWidth();
     if(!freeze)
         for (size_t i = 0; i < input.getNumFrames(); i++)
         {
             input1.push_back(input[i*device.inputChannels+(input1Channel-1)]);
             input2.push_back(input[i*device.inputChannels+input2Channel-1]);
+            while(input1.size() > 2*timeSlice && input2.size() > 2*timeSlice)
+            {
+                input1.erase(input1.begin(),input1.begin()+1);
+                input2.erase(input2.begin(),input2.begin()+1);
+            }
 
             // fill according to time window specification
-            if(input1.size() > 2*timeWidth*input.getSampleRate()/ofGetWidth())
+            if(sampleCount % (2*timeSlice) == 0 && sampleCount > 0)
             {
+                
                 // need to find max and min vals to display zoomed-out info
-                std::vector<float> selections1 = findMaxAndMin(input1,2);
-                std::vector<float> selections2 = findMaxAndMin(input2,2);
+                std::vector<float> selections1 = findMaxAndMin(input1,2,2*timeSlice);
+                std::vector<float> selections2 = findMaxAndMin(input2,2,2*timeSlice);
+
                 // record the max and min info
                 for(int j = 0; j < 2; j++)
                     volHistory.push_back(std::make_pair(selections1[j],selections2[j]));
@@ -348,10 +392,8 @@ void ofApp::audioIn(ofSoundBuffer & input){
                 //if we are bigger the the size we want to record - lets drop the oldest value
                 if( volHistory.size() >= plotWidth)
                     volHistory.erase(volHistory.begin(), volHistory.begin()+2);
-
-                input1.clear();
-                input2.clear();
             }
+            sampleCount++;
         }
 }
 
@@ -411,4 +453,3 @@ void ofApp::gotMessage(ofMessage msg){
 void ofApp::dragEvent(ofDragInfo dragInfo){
 
 }
-

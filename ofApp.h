@@ -24,15 +24,15 @@ public:
     void gotMessage(ofMessage msg);
 
     void audioIn(ofSoundBuffer & input);
-    void changedMode(bool &mode);
+    void changedCompMode(bool &mode);
     void changedDevice(int &newDevice);
     void changedSampleRate(int &rate);
-    void changedBufferSize(int &rate);
+    void changedBufferSize(int &size);
+    void changedOffset(float &offset);
     void froze(bool &frozen);
     void exit();
 
 private:
-
     ofxPanel guiLeft;
     ofxPanel guiRight;
     ofParameterGroup audioInterface;
@@ -50,6 +50,7 @@ private:
     ofParameter<float> ch1Gain;
     ofParameter<float> ch2Gain;
     ofParameter<float> timeWidth;
+    ofParameter<float> offset;
     ofParameter<bool> compressionMode;
     ofParameter<float> y_max;
     ofParameter<float> y_min;
@@ -57,7 +58,9 @@ private:
 
     vector <float> input1;
     vector <float> input2;
-    vector <std::pair<float,float> > volHistory;
+    vector <std::pair<float,float>> volHistory;
+    unsigned long sampleCount = 0;
+    bool setInputs = false;
 
     ofSoundStream soundStream;
     ofSoundStreamSettings settings;
@@ -67,11 +70,11 @@ private:
     ofColor white = ofColor(255,255,255);
     ofColor lightgray = ofColor(225,225,225);
     ofColor gray = ofColor(127,127,127);
+    ofColor darkgray = ofColor(57,57,57);
+
     ofColor red = ofColor(225,127,127);
     ofColor blue = ofColor(127,127,225);
     ofColor green = ofColor(87,185,87);
-
-
 
     int plotHeight;
     int plotWidth;
