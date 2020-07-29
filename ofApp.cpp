@@ -89,14 +89,14 @@ void ofApp::changedDevice(int &newDevice)
     settings.numOutputChannels = 0;
     settings.numInputChannels = device.inputChannels;
     soundStream.setup(settings);
-    input1Channel.setMax(device.inputChannels);
-    input2Channel.setMax(device.inputChannels);
+    in1Channel.setMax(device.inputChannels);
+    in2Channel.setMax(device.inputChannels);
     sampleRate.setMax(device.sampleRates.size()-1);
-    input1Channel = 1;
-    input2Channel = 2;
-    ch1Gain = 0;
-    ch2Gain = 0;
-    sampleRate = 0;
+    in1Channel = in1ChannelDefault;
+    in2Channel = in2ChannelDefault;
+    ch1Gain = ch1GainDefault;
+    ch2Gain = ch2GainDefault;
+    sampleRate = sampleRateDefault;
     volHistory.clear();
 }
 // listener
@@ -120,6 +120,23 @@ void ofApp::changedBufferSize(int &size)
 void ofApp::changedOffset(float &offset)
 {
     setInputs = true;
+}
+// listener
+void ofApp::wasReset(bool &isReset)
+{
+    if(isReset)
+    {
+        audioDevice = audioDeviceDefault;
+
+        bufferSize = bufferSizeDefault;
+        timeWidth = timeWidthDefault;
+        offset = offsetDefault;
+        compMode = compModeDefault;
+        y_max = y_maxDefault;
+        y_min = y_minDefault;
+        freeze = freezeDefault;
+        reset = false;
+    }
 }
 // listener
 void ofApp::froze(bool &frozen)
@@ -171,26 +188,42 @@ void ofApp::setup(){
         }
     settings.setInDevice(device);
 
+    audioDeviceDefault = deviceidx;
+    sampleRateDefault = 0;
+    bufferSizeDefault = 6;
+    in1ChannelDefault = 1;
+    in2ChannelDefault = 2;
+    ch1GainDefault = 0;
+    ch2GainDefault = 0;
+    timeWidthDefault = 2.5;
+    offsetDefault = 0;
+    compModeDefault = false;
+    y_maxDefault = 0;
+    y_minDefault = -60;
+    freezeDefault = false;
+
     // set up the gui and add event listeners
-    audioInterface.add(audioDevice.set("Audio Device Selector",deviceidx,0,soundStream.getDeviceList().size()-1));
+    audioInterface.add(audioDevice.set("Audio Device Selector",audioDeviceDefault,0,soundStream.getDeviceList().size()-1));
     audioDevice.addListener(this, &ofApp::changedDevice);
-    audioInterface.add(sampleRate.set("Sample Rate Selector",0,0,device.sampleRates.size()-1));
+    audioInterface.add(sampleRate.set("Sample Rate Selector",sampleRateDefault,0,device.sampleRates.size()-1));
     sampleRate.addListener(this, &ofApp::changedSampleRate);
-    audioInterface.add(bufferSize.set("Buffer Size",6,6,11));
+    audioInterface.add(bufferSize.set("Buffer Size",bufferSizeDefault,6,11));
     bufferSize.addListener(this, &ofApp::changedBufferSize);
-    channels.add(input1Channel.set("Reference Channel",1,1,device.inputChannels));
-    channels.add(input2Channel.set("Divisor Channel",2,1,device.inputChannels));
-    channels.add(ch1Gain.set("Ref. Gain (dB)",0,0,120));
-    channels.add(ch2Gain.set("Div. Gain (dB)",0,0,120));
-    mainControls.add(timeWidth.set("time (s)",2.5,0.01,5));
-    mainControls.add(offset.set("offset (ms)",0,-10,10));
+    channels.add(in1Channel.set("Reference Channel",in1ChannelDefault,1,device.inputChannels));
+    channels.add(in2Channel.set("Divisor Channel",in2ChannelDefault,1,device.inputChannels));
+    channels.add(ch1Gain.set("Ref. Gain (dB)",ch1GainDefault,0,120));
+    channels.add(ch2Gain.set("Div. Gain (dB)",ch2GainDefault,0,120));
+    mainControls.add(reset.set("Restore defaults",false));
+    reset.addListener(this, &ofApp::wasReset);
+    mainControls.add(timeWidth.set("time (s)",timeWidthDefault,0.01,5));
+    mainControls.add(offset.set("offset (ms)",offsetDefault,-10,10));
     offset.addListener(this, &ofApp::changedOffset);
-    compressionControls.add(compressionMode.set("Compression Analysis",false));
-    compressionMode.addListener(this, &ofApp::changedCompMode);
-    compressionControls.add(y_max.set("Y max (dB)",0,-200,20));
-    compressionControls.add(y_min.set("Y min (dB)",-60,-200,20));
-    mainControls.add(freeze.set("Freeze",false));
+    mainControls.add(freeze.set("Freeze",freezeDefault));
     freeze.addListener(this, &ofApp::froze);
+    compressionControls.add(compMode.set("Compression Analysis",compModeDefault));
+    compMode.addListener(this, &ofApp::changedCompMode);
+    compressionControls.add(y_max.set("Y max (dB)",y_maxDefault,-200,20));
+    compressionControls.add(y_min.set("Y min (dB)",y_minDefault,-200,20));
 
     audioInterface.setName("Audio Interface");
     collectorLeft.add(audioInterface);
@@ -244,12 +277,12 @@ void ofApp::draw(){
         ofDrawRectangle(0, 0, plotWidth, plotHeight);
         // draw the waveform
             ofPushStyle();
-                if(compressionMode)
+                if(compMode)
                 {
                     ofSetColor(green);
                     ofBeginShape();
                     for (unsigned int i = 0; i < values.size(); i++)
-                        ofVertex(i, ofMap(toDb(values[i].first/values[i].second),-y_max,-y_min,0,plotHeight,true)); // compressor gain
+                        ofVertex(i, ofMap(toDb(values[i].first/values[i].second),-y_max,-y_min,0,plotHeight,true));
                     ofEndShape(false);
                 }
                 else
@@ -278,7 +311,7 @@ void ofApp::draw(){
         ofDrawBitmapString(format_number(timeWidth,3), -35, plotHeight+20);
 
         // y-axis
-        if(compressionMode)
+        if(compMode)
         {
             ofDrawBitmapString("Gain (dB)", -15, -15);
             ofDrawBitmapString(format_number(y_max), -60, 5);
@@ -307,7 +340,7 @@ void ofApp::draw(){
         ofDrawBitmapString(device.sampleRates.at(sampleRate), splSel.getPosition().x+guiLeft.getWidth()+5, splSel.getPosition().y+14);
         ofDrawBitmapString(to_string(int(pow(2.,float(bufferSize)))), bufSel.getPosition().x+guiLeft.getWidth()+5, bufSel.getPosition().y+14);
     }
-    if(!guiLeft.getGroup("Channels").isMinimized() && !compressionMode)
+    if(!guiLeft.getGroup("Channels").isMinimized() && !compMode)
     {
         auto& refCh = guiLeft.getGroup("Channels").getIntSlider("Reference Channel");
         auto& divCh = guiLeft.getGroup("Channels").getIntSlider("Divisor Channel");
@@ -325,7 +358,7 @@ void ofApp::draw(){
             ofDrawRectangle(divGain.getPosition().x+guiLeft.getWidth()+5, divGain.getPosition().y+5, 10, 10);
         ofPopStyle();
     }
-    if(!guiRight.getGroup("Compression Mode").isMinimized() && compressionMode)
+    if(!guiRight.getGroup("Compression Mode").isMinimized() && compMode)
     {
         auto& yMax = guiRight.getGroup("Compression Mode").getFloatSlider("Y max (dB)");
         auto& yMin = guiRight.getGroup("Compression Mode").getFloatSlider("Y min (dB)");
@@ -369,8 +402,8 @@ void ofApp::audioIn(ofSoundBuffer & input){
     if(!freeze)
         for (size_t i = 0; i < input.getNumFrames(); i++)
         {
-            input1.push_back(input[i*device.inputChannels+(input1Channel-1)]);
-            input2.push_back(input[i*device.inputChannels+input2Channel-1]);
+            input1.push_back(input[i*device.inputChannels+(in1Channel-1)]);
+            input2.push_back(input[i*device.inputChannels+in2Channel-1]);
             while(input1.size() > 2*timeSlice && input2.size() > 2*timeSlice)
             {
                 input1.erase(input1.begin(),input1.begin()+1);

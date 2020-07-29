@@ -29,6 +29,7 @@ public:
     void changedSampleRate(int &rate);
     void changedBufferSize(int &size);
     void changedOffset(float &offset);
+    void wasReset(bool &isReset);
     void froze(bool &frozen);
     void exit();
 
@@ -45,16 +46,31 @@ private:
     ofParameter<int> audioDevice;
     ofParameter<int> sampleRate;
     ofParameter<int> bufferSize;
-    ofParameter<int> input1Channel;
-    ofParameter<int> input2Channel;
+    ofParameter<int> in1Channel;
+    ofParameter<int> in2Channel;
     ofParameter<float> ch1Gain;
     ofParameter<float> ch2Gain;
     ofParameter<float> timeWidth;
     ofParameter<float> offset;
-    ofParameter<bool> compressionMode;
+    ofParameter<bool> compMode;
     ofParameter<float> y_max;
     ofParameter<float> y_min;
     ofParameter<bool> freeze;
+    ofParameter<bool> reset;
+
+    int audioDeviceDefault;
+    int sampleRateDefault;
+    int bufferSizeDefault;
+    int in1ChannelDefault;
+    int in2ChannelDefault;
+    float ch1GainDefault;
+    float ch2GainDefault;
+    float timeWidthDefault;
+    float offsetDefault;
+    bool compModeDefault;
+    float y_maxDefault;
+    float y_minDefault;
+    bool freezeDefault;
 
     vector <float> input1;
     vector <float> input2;
