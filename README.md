@@ -1,5 +1,7 @@
 # CompressOScope
 
+The compressoscope is an application which allows you to calculate and visualize a compressor's gain in real time. 
+
 The CompressOScope was built with openFrameworks 0.11.0.
 
 To set specific values on the GUI parameters, right click twice on the value you want to set, then type in the value you would like to set.<br>
