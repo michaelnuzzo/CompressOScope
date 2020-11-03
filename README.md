@@ -1,6 +1,6 @@
 # CompressOScope
 
-The compressoscope is an application which allows you to calculate and visualize a compressor's gain in real time. 
+The CompressOScope is an application which allows you to calculate and visualize a compressor's gain in real time. 
 
 The CompressOScope was built with openFrameworks 0.11.0.
 
