@@ -402,7 +402,7 @@ void ofApp::audioIn(ofSoundBuffer & input){
     if(!freeze)
         for (size_t i = 0; i < input.getNumFrames(); i++)
         {
-            input1.push_back(input[i*device.inputChannels+(in1Channel-1)]);
+            input1.push_back(input[i*device.inputChannels+in1Channel-1]);
             input2.push_back(input[i*device.inputChannels+in2Channel-1]);
             while(input1.size() > 2*timeSlice && input2.size() > 2*timeSlice)
             {

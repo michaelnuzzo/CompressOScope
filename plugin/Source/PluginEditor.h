@@ -14,7 +14,7 @@
 //==============================================================================
 /**
 */
-class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer
+class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer, juce::Slider::Listener
 {
 public:
     NewProjectAudioProcessorEditor (NewProjectAudioProcessor&);
@@ -24,12 +24,18 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
-    void plot(juce::Graphics& g);
+    void plot(juce::Graphics& g, juce::Rectangle<int> rect);
+
+    void sliderValueChanged (juce::Slider* slider) override;
 
 private:
     void timerCallback() override;
     NewProjectAudioProcessor& audioProcessor;
+    juce::AudioBuffer<float> sampleBuffer;
     juce::AudioBuffer<float> displayBuffer;
+    int padding = 100;
+    juce::Rectangle<int> window;
+    juce::Slider timeKnob;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
 };
