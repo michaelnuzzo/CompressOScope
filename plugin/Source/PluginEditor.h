@@ -36,6 +36,7 @@ private:
     int padding = 100;
     juce::Rectangle<int> window;
     juce::Slider timeKnob;
+    juce::Colour palette[2] {juce::Colours::lightblue, juce::Colours::red};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
 };
