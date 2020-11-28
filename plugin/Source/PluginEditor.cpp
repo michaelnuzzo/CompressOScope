@@ -18,11 +18,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     window.setSize(getWidth()-padding, getHeight()*2/3);
     window.setLeft(padding);
     window.setTop(padding/2);
-//    window.setX(padding);
-//    window.setY(padding/2);
 
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    timeKnob.setNormalisableRange(juce::NormalisableRange<double>(0.05f,5.f,0.01f));
+    timeKnob.setNormalisableRange(juce::NormalisableRange<double>(0.001f,5.f,0.001f));
     timeKnob.addListener(this);
     addAndMakeVisible(timeKnob);
 
@@ -46,7 +44,7 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawRect(window);
     plot(g,window);
 
-    timeKnob.setBounds(getWidth()/4, getHeight()-100, getWidth()/2, 100);
+    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 100);
 }
 
 void NewProjectAudioProcessorEditor::resized()
@@ -60,16 +58,24 @@ void NewProjectAudioProcessorEditor::timerCallback()
     sampleBuffer.reverse(0, sampleBuffer.getNumSamples());
 
     // TODO: i think this is not quite right, fix it at some point...
-    float ratio = sampleBuffer.getNumSamples()/window.getWidth();
+    float ratio = (2.*sampleBuffer.getNumSamples())/window.getWidth();
     for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
     {
         float * displayData = displayBuffer.getWritePointer(ch);
         auto sub = juce::dsp::AudioBlock<float>(sampleBuffer).getSubsetChannelBlock(ch, 1);
         for(int i = 0; i < displayBuffer.getNumSamples()/2; i++)
         {
-            auto minmax = sub.getSubBlock(int(i*ratio), int(ratio)).findMinAndMax();
-            displayData[i*2] = minmax.getStart();
-            displayData[i*2+1] = minmax.getEnd();
+            if(ratio >= 1)
+            {
+                auto minmax = sub.getSubBlock(int(i*ratio), int(ratio)).findMinAndMax();
+                displayData[i*2] = minmax.getStart();
+                displayData[i*2+1] = minmax.getEnd();
+            }
+            else
+            {
+                displayData[i*2] = sub.getSample(0, int(i*ratio));
+                displayData[i*2+1] = sub.getSample(0, int(i*ratio));
+            }
         }
     }
 
@@ -81,7 +87,6 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
     auto w = rect.getWidth();
     auto h = rect.getHeight();
     auto t = rect.getTopLeft();
-
 
     // oscilloscope
     for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
