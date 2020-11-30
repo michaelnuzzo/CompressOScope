@@ -21,7 +21,9 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
                      #endif
                        )
 #endif
+                    , parameters(*this, nullptr, "Parameters", createParameters())
 {
+    parameters.state = juce::ValueTree("Parameters");
 }
 
 NewProjectAudioProcessor::~NewProjectAudioProcessor()
@@ -93,7 +95,15 @@ void NewProjectAudioProcessor::changeProgramName (int index, const juce::String&
 //==============================================================================
 void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    collector.reset();
+    minmaxBuffer.setSize(getTotalNumInputChannels(), 2);
+    displayCollector.reset();
+
+    juce::AudioBuffer<float> initializeWithZeros;
+    initializeWithZeros.setSize(getTotalNumInputChannels(), 1000);
+    initializeWithZeros.clear();
+    displayCollector.push(initializeWithZeros);
+
+    setUpdate();
 }
 
 void NewProjectAudioProcessor::releaseResources()
@@ -135,9 +145,51 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    if(collector.getSpaceLeft() < buffer.getNumSamples())
-        collector.trim(buffer.getNumSamples());
+    if(requiresUpdate)
+    {
+        updateParameters();
+    }
+
     collector.push(buffer);
+
+    while(collector.getNumUnread() > timeSlice)
+    {
+        collector.pop(tmp);
+        auto tmpBlock = juce::dsp::AudioBlock<float>(tmp);
+
+        for(int ch = 0; ch < getTotalNumInputChannels(); ch++)
+        {
+            auto minmax = tmpBlock.getSubsetChannelBlock(ch, 1).findMinAndMax();
+            minmaxBuffer.setSample(ch, 0, minmax.getStart());
+            minmaxBuffer.setSample(ch, 1, minmax.getEnd());
+        }
+        displayCollector.push(minmaxBuffer);
+    }
+    while(displayCollector.getSpaceLeft() < 10000 )
+    {
+        displayCollector.trim(1);
+    }
+}
+
+void NewProjectAudioProcessor::updateParameters()
+{
+    timeSlice = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate() * 2;
+    if(timeSlice >= 1)
+    {
+        tmp.setSize(getTotalNumInputChannels(), timeSlice);
+    }
+    else
+    {
+        tmp.setSize(getTotalNumInputChannels(), 1);
+    }
+    requiresUpdate = false;
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME","Time", juce::NormalisableRange<float>(0.001f,5.f,0.001f), 1.f));
+    return { params.begin(), params.end() };
 }
 
 //==============================================================================
@@ -154,15 +206,22 @@ juce::AudioProcessorEditor* NewProjectAudioProcessor::createEditor()
 //==============================================================================
 void NewProjectAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    std::unique_ptr<juce::XmlElement> xml(parameters.state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 
 void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+
+    if(xmlState.get() != nullptr)
+    {
+        if(xmlState->hasTagName(parameters.state.getType()))
+        {
+            parameters.state = juce::ValueTree::fromXml(*xmlState);
+        }
+    }
+    setUpdate();
 }
 
 //==============================================================================

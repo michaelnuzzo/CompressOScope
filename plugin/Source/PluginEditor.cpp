@@ -15,17 +15,28 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
 {
     setSize (1000, 1000);
     startTimerHz(60);
+
     window.setSize(getWidth()-padding, getHeight()*2/3);
     window.setLeft(padding);
     window.setTop(padding/2);
 
+    audioProcessor.setNumPixels(window.getWidth());
+
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     timeKnob.setNormalisableRange(juce::NormalisableRange<double>(0.001f,5.f,0.001f));
-    timeKnob.addListener(this);
+    timeKnob.onValueChange = [this] {audioProcessor.setNumPixels(window.getWidth()); audioProcessor.setUpdate();};
+    timeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"TIME",timeKnob);
     addAndMakeVisible(timeKnob);
 
-    sampleBuffer.setSize(audioProcessor.getTotalNumInputChannels(), int(audioProcessor.getSampleRate()*timeKnob.getValue()));
-    sampleBuffer.clear();
+    dbKnobs[0] = std::make_unique<juce::Slider>();
+    dbKnobs[0]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    dbKnobs[0]->setNormalisableRange(juce::NormalisableRange<double>(0.f,100.f,0.1f));
+    addAndMakeVisible(*dbKnobs[0]);
+
+    dbKnobs[1] = std::make_unique<juce::Slider>();
+    dbKnobs[1]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    dbKnobs[1]->setNormalisableRange(juce::NormalisableRange<double>(0.f,100.f,0.1f));
+    addAndMakeVisible(*dbKnobs[1]);
 
     displayBuffer.setSize(audioProcessor.getTotalNumInputChannels(), window.getWidth());
     displayBuffer.clear();
@@ -44,7 +55,9 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawRect(window);
     plot(g,window);
 
-    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 100);
+    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 25);
+    dbKnobs[0]->setBounds(getWidth()/4, getHeight()-200, 400, 25);
+    dbKnobs[1]->setBounds(getWidth()/4, getHeight()-150, 400, 25);
 }
 
 void NewProjectAudioProcessorEditor::resized()
@@ -53,32 +66,6 @@ void NewProjectAudioProcessorEditor::resized()
 
 void NewProjectAudioProcessorEditor::timerCallback()
 {
-    if(audioProcessor.collector.getNumUnread() >= sampleBuffer.getNumSamples())
-        audioProcessor.collector.readHead(sampleBuffer);
-    sampleBuffer.reverse(0, sampleBuffer.getNumSamples());
-
-    // TODO: i think this is not quite right, fix it at some point...
-    float ratio = (2.*sampleBuffer.getNumSamples())/window.getWidth();
-    for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
-    {
-        float * displayData = displayBuffer.getWritePointer(ch);
-        auto sub = juce::dsp::AudioBlock<float>(sampleBuffer).getSubsetChannelBlock(ch, 1);
-        for(int i = 0; i < displayBuffer.getNumSamples()/2; i++)
-        {
-            if(ratio >= 1)
-            {
-                auto minmax = sub.getSubBlock(int(i*ratio), int(ratio)).findMinAndMax();
-                displayData[i*2] = minmax.getStart();
-                displayData[i*2+1] = minmax.getEnd();
-            }
-            else
-            {
-                displayData[i*2] = sub.getSample(0, int(i*ratio));
-                displayData[i*2+1] = sub.getSample(0, int(i*ratio));
-            }
-        }
-    }
-
     repaint();
 }
 
@@ -88,18 +75,21 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
     auto h = rect.getHeight();
     auto t = rect.getTopLeft();
 
+    audioProcessor.displayCollector.readHead(displayBuffer);
+    
     // oscilloscope
     for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
     {
         g.setColour(palette[ch]);
         auto data = displayBuffer.getReadPointer(ch);
+        auto gain = juce::Decibels::decibelsToGain(dbKnobs[ch]->getValue());
 
-        for (int i = 1; i < w; i++)
+        for (int i = 0; i < w; i++)
         {
-            float x1 = (w - i) - 1 + t.getX();
-            float y1 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h/2. - h * data[i - 1]));
-            float x2 = (w - i) + t.getX();
-            float y2 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h/2. - h * data[i]));
+            float x1 = i + t.getX();
+            float y1 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i] * gain));
+            float x2 = i + 1 + t.getX();
+            float y2 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i + 1] * gain));
 
             g.drawLine (x1,y1,x2,y2);
         }
@@ -110,12 +100,12 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
     auto input = displayBuffer.getReadPointer(0);
     auto output = displayBuffer.getReadPointer(1);
 
-    for (int i = 1; i < w; i++)
+    for (int i = 0; i < w; i++)
     {
-        float x1 = (w - i) - 1 + t.getX();
-        float y1 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i - 1]/input[i - 1]));
-        float x2 = (w - i) + t.getX();
-        float y2 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i]/input[i]));
+        float x1 = i + t.getX();
+        float y1 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i]/input[i]));
+        float x2 = i + 1 + t.getX();
+        float y2 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i + 1]/input[i + 1]));
         
         if(isfinite(y1) && isfinite(y2))
         {
@@ -123,14 +113,3 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
         }
     }
 }
-
-void NewProjectAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
-{
-    if (slider == &timeKnob)
-    {
-        sampleBuffer.setSize(audioProcessor.getTotalNumInputChannels(), int(audioProcessor.getSampleRate()*timeKnob.getValue()));
-        sampleBuffer.clear();
-    }
-}
-
-

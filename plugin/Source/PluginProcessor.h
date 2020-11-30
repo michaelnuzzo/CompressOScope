@@ -54,9 +54,24 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    ASyncBuffer collector;
+    inline void setUpdate() {requiresUpdate = true;}
+    inline void setNumPixels(int num) {numPixels = num;}
+    void updateParameters();
+
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
+    juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
+
+    ASyncBuffer displayCollector;
 
 private:
+    ASyncBuffer collector;
+    juce::AudioBuffer<float> tmp;
+    juce::AudioBuffer<float> minmaxBuffer;
+    int timeSlice;
+    int numPixels;
+    bool requiresUpdate;
+    juce::AudioProcessorValueTreeState parameters;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessor)
 };
