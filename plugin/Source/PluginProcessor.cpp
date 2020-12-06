@@ -155,8 +155,11 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         updateParameters();
     }
 
+
     audioCollector.push(buffer);
 
+    // TODO: if timeSlize < 0, we should have a different condition
+    // so we can interpolate between zoomed samples
     while(audioCollector.getNumUnread() > timeSlice)
     {
         audioCollector.pop(tmp);
@@ -189,9 +192,11 @@ void NewProjectAudioProcessor::updateParameters()
     }
 
     // if the window size has been changed
-    if(numPixels != displayCollector.getTotalSize())
+    if(numPixels*2 != displayCollector.getTotalSize())
     {
-        displayCollector.resize(numPixels+1 + numPixels);
+        // We double the size to leave extra room to account for
+        // concurrent access between the audio and graphics threads
+        displayCollector.resize(numPixels*2);
     }
 
     requiresUpdate = false;
