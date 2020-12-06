@@ -39,6 +39,7 @@ private:
     juce::Slider timeKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment;
     std::array<std::unique_ptr<juce::Slider>,2> dbKnobs;
+    juce::ToggleButton compressionButton;
     juce::Colour palette[2] {juce::Colours::lightblue, juce::Colours::red};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);

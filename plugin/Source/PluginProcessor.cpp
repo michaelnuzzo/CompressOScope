@@ -21,8 +21,11 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
                      #endif
                        )
 #endif
+                    , displayCollector(1), audioCollector(1)
                     , parameters(*this, nullptr, "Parameters", createParameters())
 {
+    displayCollector.setIsOverwritable(true);
+    audioCollector.setIsOverwritable(true);
     parameters.state = juce::ValueTree("Parameters");
 }
 
@@ -98,8 +101,10 @@ void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     minmaxBuffer.setSize(getTotalNumInputChannels(), 2);
     displayCollector.reset();
 
+    audioCollector.resize(sampleRate*5);
+
     juce::AudioBuffer<float> initializeWithZeros;
-    initializeWithZeros.setSize(getTotalNumInputChannels(), 1000);
+    initializeWithZeros.setSize(getTotalNumInputChannels(), displayCollector.getTotalSize()-1);
     initializeWithZeros.clear();
     displayCollector.push(initializeWithZeros);
 
@@ -150,11 +155,11 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         updateParameters();
     }
 
-    collector.push(buffer);
+    audioCollector.push(buffer);
 
-    while(collector.getNumUnread() > timeSlice)
+    while(audioCollector.getNumUnread() > timeSlice)
     {
-        collector.pop(tmp);
+        audioCollector.pop(tmp);
         auto tmpBlock = juce::dsp::AudioBlock<float>(tmp);
 
         for(int ch = 0; ch < getTotalNumInputChannels(); ch++)
@@ -164,10 +169,10 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             minmaxBuffer.setSample(ch, 1, minmax.getEnd());
         }
         displayCollector.push(minmaxBuffer);
-    }
-    while(displayCollector.getSpaceLeft() < 10000 )
-    {
-        displayCollector.trim(1);
+        while(displayCollector.getNumUnread() > numPixels + 20)
+        {
+            displayCollector.trim(1);
+        }
     }
 }
 
@@ -178,10 +183,17 @@ void NewProjectAudioProcessor::updateParameters()
     {
         tmp.setSize(getTotalNumInputChannels(), timeSlice);
     }
-    else
+    else if(tmp.getNumSamples() != 1)
     {
         tmp.setSize(getTotalNumInputChannels(), 1);
     }
+
+    // if the window size has been changed
+    if(numPixels != displayCollector.getTotalSize())
+    {
+        displayCollector.resize(numPixels+1 + numPixels);
+    }
+
     requiresUpdate = false;
 }
 

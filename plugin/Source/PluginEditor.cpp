@@ -38,6 +38,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     dbKnobs[1]->setNormalisableRange(juce::NormalisableRange<double>(0.f,100.f,0.1f));
     addAndMakeVisible(*dbKnobs[1]);
 
+    compressionButton.setButtonText("Compression Mode");
+    addAndMakeVisible(compressionButton);
+
     displayBuffer.setSize(audioProcessor.getTotalNumInputChannels(), window.getWidth());
     displayBuffer.clear();
 }
@@ -58,6 +61,7 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 25);
     dbKnobs[0]->setBounds(getWidth()/4, getHeight()-200, 400, 25);
     dbKnobs[1]->setBounds(getWidth()/4, getHeight()-150, 400, 25);
+    compressionButton.setBounds(getWidth()-100, getHeight()-100, 25, 25);
 }
 
 void NewProjectAudioProcessorEditor::resized()
@@ -75,41 +79,49 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
     auto h = rect.getHeight();
     auto t = rect.getTopLeft();
 
-    audioProcessor.displayCollector.readHead(displayBuffer);
-    
-    // oscilloscope
-    for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
+    if(audioProcessor.displayCollector.getNumUnread() >= displayBuffer.getNumSamples())
     {
-        g.setColour(palette[ch]);
-        auto data = displayBuffer.getReadPointer(ch);
-        auto gain = juce::Decibels::decibelsToGain(dbKnobs[ch]->getValue());
+        audioProcessor.displayCollector.readHead(displayBuffer);
+    }
+
+    if(!compressionButton.getToggleStateValue().getValue())
+    {
+        // oscilloscope
+        for(int ch = 0; ch < displayBuffer.getNumChannels(); ch++)
+        {
+            g.setColour(palette[ch]);
+            auto data = displayBuffer.getReadPointer(ch);
+            auto gain = juce::Decibels::decibelsToGain(dbKnobs[ch]->getValue());
+
+            for (int i = 0; i < w; i++)
+            {
+                float x1 = i + t.getX();
+                float y1 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i] * gain));
+                float x2 = i + 1 + t.getX();
+                float y2 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i + 1] * gain));
+
+                g.drawLine (x1,y1,x2,y2);
+            }
+        }
+    }
+    else
+    {
+        // compression mode
+        g.setColour(juce::Colours::lightgreen);
+        auto input = displayBuffer.getReadPointer(0);
+        auto output = displayBuffer.getReadPointer(1);
 
         for (int i = 0; i < w; i++)
         {
             float x1 = i + t.getX();
-            float y1 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i] * gain));
+            float y1 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i]/input[i]));
             float x2 = i + 1 + t.getX();
-            float y2 = juce::jlimit(float(t.getY()), float(h + t.getY()), float(h/2. - h * data[i + 1] * gain));
+            float y2 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i + 1]/input[i + 1]));
 
-            g.drawLine (x1,y1,x2,y2);
-        }
-    }
-
-    // compression mode
-    g.setColour(juce::Colours::lightgreen);
-    auto input = displayBuffer.getReadPointer(0);
-    auto output = displayBuffer.getReadPointer(1);
-
-    for (int i = 0; i < w; i++)
-    {
-        float x1 = i + t.getX();
-        float y1 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i]/input[i]));
-        float x2 = i + 1 + t.getX();
-        float y2 = juce::jlimit(float(t.getY()), float(h+t.getY()), float(h - h/2. * output[i + 1]/input[i + 1]));
-        
-        if(isfinite(y1) && isfinite(y2))
-        {
-            g.drawLine (x1,y1,x2,y2);
+            if(isfinite(y1) && isfinite(y2))
+            {
+                g.drawLine (x1,y1,x2,y2);
+            }
         }
     }
 }

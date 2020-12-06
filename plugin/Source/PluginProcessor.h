@@ -64,7 +64,7 @@ public:
     ASyncBuffer displayCollector;
 
 private:
-    ASyncBuffer collector;
+    ASyncBuffer audioCollector;
     juce::AudioBuffer<float> tmp;
     juce::AudioBuffer<float> minmaxBuffer;
     int timeSlice;

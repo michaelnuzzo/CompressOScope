@@ -10,9 +10,9 @@
 
 #include "ASyncBuffer.h"
 
-ASyncBuffer::ASyncBuffer()
+ASyncBuffer::ASyncBuffer(int size) : abstractFifo(size)
 {
-    circularBuffer.setSize(2,MAX_LENGTH);
+    circularBuffer.setSize(2,size);
 }
 
 ASyncBuffer::~ASyncBuffer()
@@ -28,6 +28,13 @@ void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWri
     if(numToMark < 0)
     {
         numToMark = numToWrite;
+    }
+
+    if(canOverwrite && numToWrite > abstractFifo.getFreeSpace())
+    {
+        int cut = numToWrite - abstractFifo.getFreeSpace();
+        trim(cut);
+        jassert(abstractFifo.getFreeSpace() >= numToWrite);
     }
 
     int start1, size1, start2, size2;
@@ -89,26 +96,29 @@ void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int num
     }
 
     int start1, size1, start2, size2;
-    int fullSize = abstractFifo.getNumReady();
-    abstractFifo.prepareToRead(fullSize, start1, size1, start2, size2);
+    int allReady = abstractFifo.getNumReady();
+    int capacity = abstractFifo.getTotalSize();
+    abstractFifo.prepareToRead(allReady, start1, size1, start2, size2);
+//    jassert(allReady == size1+size2);
+    allReady = abstractFifo.getNumReady();
 
-    // while the circular buffer is not maxed out
-    // read from size1 + everything in size2
-    if(numToRead > size2)
+    if(size2 == 0)
+    {
+        start1 += size1 - numToRead;
+        size1 = numToRead;
+    }
+    else if(numToRead > size2)
     {
         size1 = numToRead - size2;
-        start1 = fullSize - size1;
+        start1 = capacity - size1;
     }
-    // while the circular buffer is at max capacity
-    // only read from size2
-    else
+    else if(numToRead <= size2)
     {
         start1 = 0;
         size1 = 0;
-        start2 = size2 - numToRead;
+        start2 = start2 + size2 - numToRead;
         size2 = numToRead;
     }
-    jassert(numToRead == size1+size2);
 
     if(size1 > 0)
     {
@@ -133,6 +143,12 @@ void ASyncBuffer::reset()
 {
     circularBuffer.clear();
     abstractFifo.reset();
+}
+
+void ASyncBuffer::resize(int newSize)
+{
+    abstractFifo.setTotalSize(newSize);
+    circularBuffer.setSize(2, newSize, true, true);
 }
 
 
