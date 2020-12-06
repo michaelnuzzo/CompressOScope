@@ -120,6 +120,18 @@ void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int num
         size2 = numToRead;
     }
 
+//    DBG("startidx1");
+//    DBG(start1);
+//    DBG("endidx1");
+//    DBG(start1 + size1);
+//    DBG("startidx2");
+//    DBG(start2);
+//    DBG("endidx2");
+//    DBG(start2 + size2);
+//    DBG("");
+
+
+
     if(size1 > 0)
     {
         auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start1, size1);
@@ -150,7 +162,3 @@ void ASyncBuffer::resize(int newSize)
     abstractFifo.setTotalSize(newSize);
     circularBuffer.setSize(2, newSize, true, true);
 }
-
-
-
-

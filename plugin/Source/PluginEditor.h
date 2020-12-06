@@ -14,7 +14,7 @@
 //==============================================================================
 /**
 */
-class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer//, juce::Slider::Listener
+class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer
 {
 public:
     NewProjectAudioProcessorEditor (NewProjectAudioProcessor&);
@@ -25,10 +25,7 @@ public:
     void resized() override;
 
     void plot(juce::Graphics& g, juce::Rectangle<int> rect);
-    void getMinAndMaxOrdered(juce::dsp::AudioBlock<float> block, float &val1, float &val2);
     float fract(float v);
-
-//    void sliderValueChanged (juce::Slider* slider) override;
 
 private:
     void timerCallback() override;

@@ -13,7 +13,7 @@
 NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (1000, 1000);
+    setSize (1000, 800);
     startTimerHz(60);
 
     window.setSize(getWidth()-padding, getHeight()*2/3);
@@ -43,6 +43,11 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
 
     displayBuffer.setSize(audioProcessor.getTotalNumInputChannels(), window.getWidth());
     displayBuffer.clear();
+
+    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 25);
+    dbKnobs[0]->setBounds(getWidth()/4, getHeight()-200, 400, 25);
+    dbKnobs[1]->setBounds(getWidth()/4, getHeight()-150, 400, 25);
+    compressionButton.setBounds(getWidth()-100, getHeight()-100, 25, 25);
 }
 
 NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
@@ -58,10 +63,6 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawRect(window);
     plot(g,window);
 
-    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 25);
-    dbKnobs[0]->setBounds(getWidth()/4, getHeight()-200, 400, 25);
-    dbKnobs[1]->setBounds(getWidth()/4, getHeight()-150, 400, 25);
-    compressionButton.setBounds(getWidth()-100, getHeight()-100, 25, 25);
 }
 
 void NewProjectAudioProcessorEditor::resized()

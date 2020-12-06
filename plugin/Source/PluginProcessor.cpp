@@ -113,8 +113,6 @@ void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
 void NewProjectAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -158,20 +156,25 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
     audioCollector.push(buffer);
 
-    // TODO: if timeSlize < 0, we should have a different condition
+    // TODO: if timeSlice < 0, we should have a different condition
     // so we can interpolate between zoomed samples
     while(audioCollector.getNumUnread() > timeSlice)
     {
-        audioCollector.pop(tmp);
-        auto tmpBlock = juce::dsp::AudioBlock<float>(tmp);
+        audioCollector.pop(chunk);
+        auto chunkBlock = juce::dsp::AudioBlock<float>(chunk);
 
         for(int ch = 0; ch < getTotalNumInputChannels(); ch++)
         {
-            auto minmax = tmpBlock.getSubsetChannelBlock(ch, 1).findMinAndMax();
-            minmaxBuffer.setSample(ch, 0, minmax.getStart());
-            minmaxBuffer.setSample(ch, 1, minmax.getEnd());
+            auto minmax = chunkBlock.getSubsetChannelBlock(ch, 1);
+            float first, last;
+            getMinAndMaxOrdered(minmax, first, last);
+            minmaxBuffer.setSample(ch, 0, first);
+            minmaxBuffer.setSample(ch, 1, last);
         }
+
         displayCollector.push(minmaxBuffer);
+
+        // We leave an allowance to account for concurrent access
         while(displayCollector.getNumUnread() > numPixels + 20)
         {
             displayCollector.trim(1);
@@ -182,13 +185,15 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 void NewProjectAudioProcessor::updateParameters()
 {
     timeSlice = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate() * 2;
+
+    // chunk size = timeSlice (i.e. samples / pixel)
     if(timeSlice >= 1)
     {
-        tmp.setSize(getTotalNumInputChannels(), timeSlice);
+        chunk.setSize(getTotalNumInputChannels(), timeSlice);
     }
-    else if(tmp.getNumSamples() != 1)
+    else if(chunk.getNumSamples() != 1)
     {
-        tmp.setSize(getTotalNumInputChannels(), 1);
+        chunk.setSize(getTotalNumInputChannels(), 1);
     }
 
     // if the window size has been changed
@@ -200,6 +205,35 @@ void NewProjectAudioProcessor::updateParameters()
     }
 
     requiresUpdate = false;
+}
+
+void NewProjectAudioProcessor::getMinAndMaxOrdered(juce::dsp::AudioBlock<float> block, float &val1, float &val2)
+{
+    // find the min and max values in the audio block, but preserve their order of appearance
+
+    auto p = block.getChannelPointer(0);
+    val1 = 1; // temp min
+    val2 = -1; // temp max
+    int idx1 = 0;
+    int idx2 = 0;
+    for(int i = 0; i < block.getNumSamples(); i++)
+    {
+        if(p[i] < val1)
+        {
+            val1 = p[i];
+            idx1 = i;
+        }
+        if(p[i] > val2)
+        {
+            val2 = p[i];
+            idx2 = i;
+        }
+    }
+    if(idx1 > idx2)
+    {
+        std::swap(val1, val2);
+    }
+    // val1 is either the min or the max depending on if it came first, and vice versa for val2
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
