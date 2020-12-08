@@ -30,13 +30,13 @@ public:
 private:
     void timerCallback() override;
     NewProjectAudioProcessor& audioProcessor;
-    juce::AudioBuffer<float> displayBuffer;
-    int padding = 100;
+    juce::AudioBuffer<float> windowBuffer;
     juce::Rectangle<int> window;
+    juce::Label timeLabel, db1Label, db2Label, compressionLabel, freezeLabel;
     juce::Slider timeKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment;
     std::array<std::unique_ptr<juce::Slider>,2> dbKnobs;
-    juce::ToggleButton compressionButton;
+    juce::ToggleButton compressionButton, freezeButton;
     juce::Colour palette[2] {juce::Colours::lightblue, juce::Colours::red};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
