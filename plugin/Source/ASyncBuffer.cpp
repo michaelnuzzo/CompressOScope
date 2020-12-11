@@ -99,7 +99,7 @@ void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int num
     int allReady = abstractFifo.getNumReady();
     int capacity = abstractFifo.getTotalSize();
     abstractFifo.prepareToRead(allReady, start1, size1, start2, size2);
-//    jassert(allReady == size1+size2);
+    
     allReady = abstractFifo.getNumReady();
 
     if(size2 == 0)
@@ -119,18 +119,6 @@ void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int num
         start2 = start2 + size2 - numToRead;
         size2 = numToRead;
     }
-
-//    DBG("startidx1");
-//    DBG(start1);
-//    DBG("endidx1");
-//    DBG(start1 + size1);
-//    DBG("startidx2");
-//    DBG(start2);
-//    DBG("endidx2");
-//    DBG(start2 + size2);
-//    DBG("");
-
-
 
     if(size1 > 0)
     {

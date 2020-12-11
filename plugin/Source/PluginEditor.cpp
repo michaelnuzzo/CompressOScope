@@ -42,41 +42,81 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
 
     /* set parameters */
 
+    // TODO: Make this log
     // time slider
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    timeKnob.setNormalisableRange(juce::NormalisableRange<double>(0.001f,5.f,0.001f));
+    timeKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     timeKnob.onValueChange = [this] {audioProcessor.setNumPixels(window.getWidth()); audioProcessor.setUpdate();};
     timeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"TIME",timeKnob);
     timeLabel.setText("Time Axis", juce::dontSendNotification);
     timeLabel.setJustificationType(juce::Justification::horizontallyCentred);
-    timeLabel.attachToComponent(&timeKnob, false);
+    timeLabel.attachToComponent(&timeKnob, true);
     addAndMakeVisible(timeKnob);
 
-    // db channel 1 slider
-    dbKnobs[0] = std::make_unique<juce::Slider>();
-    dbKnobs[0]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    dbKnobs[0]->setNormalisableRange(juce::NormalisableRange<double>(0.f,100.f,0.1f));
-    db1Label.setText("Channel 1 Gain", juce::dontSendNotification);
-    db1Label.setJustificationType(juce::Justification::horizontallyCentred);
-    db1Label.attachToComponent(dbKnobs[0].get(), false);
-    addAndMakeVisible(*dbKnobs[0]);
+    // channel 1 gain slider
+    gainKnobs[0] = std::make_unique<juce::Slider>();
+    gainKnobs[0]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    gainKnobs[0]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    gain1Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"GAIN1",*gainKnobs[0]);
+    gain1Label.setText("Channel 1 Gain", juce::dontSendNotification);
+    gain1Label.setJustificationType(juce::Justification::horizontallyCentred);
+    gain1Label.attachToComponent(gainKnobs[0].get(), true);
+    addAndMakeVisible(gainKnobs[0].get());
 
-    // db channel 2 slider
-    dbKnobs[1] = std::make_unique<juce::Slider>();
-    dbKnobs[1]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    dbKnobs[1]->setNormalisableRange(juce::NormalisableRange<double>(0.f,100.f,0.1f));
-    db2Label.setText("Channel 2 Gain", juce::dontSendNotification);
-    db2Label.setJustificationType(juce::Justification::horizontallyCentred);
-    db2Label.attachToComponent(dbKnobs[1].get(), false);
-    addAndMakeVisible(*dbKnobs[1]);
+    // channel 2 gain slider
+    gainKnobs[1] = std::make_unique<juce::Slider>();
+    gainKnobs[1]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    gainKnobs[1]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    gain2Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"GAIN2",*gainKnobs[1]);
+    gain2Label.setText("Channel 2 Gain", juce::dontSendNotification);
+    gain2Label.setJustificationType(juce::Justification::horizontallyCentred);
+    gain2Label.attachToComponent(gainKnobs[1].get(), true);
+    addAndMakeVisible(gainKnobs[1].get());
+
+    // ymax slider
+    yMaxKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    yMaxKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    yMaxAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMAX",yMaxKnob);
+    yMaxLabel.setText("Y max", juce::dontSendNotification);
+    yMaxLabel.setJustificationType(juce::Justification::horizontallyCentred);
+    yMaxLabel.attachToComponent(&yMaxKnob, true);
+    addAndMakeVisible(yMaxKnob);
+
+    // ymin slider
+    yMinKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    yMinKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    yMinAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMIN",yMinKnob);
+    yMinLabel.setText("Y min", juce::dontSendNotification);
+    yMinLabel.setJustificationType(juce::Justification::horizontallyCentred);
+    yMinLabel.attachToComponent(&yMinKnob, true);
+    addAndMakeVisible(yMinKnob);
 
     // compression mode checkbox
+    compressionButton.onStateChange = [this]
+    {
+        // show the appropriate slider
+        // TODO: make sure this runs on initialization (maybe avpts will take care of this)
+        auto compMode = compressionButton.getToggleStateValue().getValue();
+        gainKnobs[0]->setVisible(!compMode);
+        gainKnobs[1]->setVisible(!compMode);
+        yMinKnob.setVisible(compMode);
+        yMaxKnob.setVisible(compMode);
+    };
+    auto compMode = compressionButton.getToggleStateValue().getValue();
+    gainKnobs[0]->setVisible(!compMode);
+    gainKnobs[1]->setVisible(!compMode);
+    yMinKnob.setVisible(compMode);
+    yMaxKnob.setVisible(compMode);
+
+    compressionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"COMPMODE",compressionButton);
     compressionLabel.setText("Compression Mode", juce::dontSendNotification);
     compressionLabel.setJustificationType(juce::Justification::horizontallyCentred);
     compressionLabel.attachToComponent(&compressionButton, true);
     addAndMakeVisible(compressionButton);
 
     // freeze checkbox
+    freezeButton.onStateChange = [this] {timeKnob.setVisible(!freezeButton.getToggleStateValue().getValue());};
+    freezeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"FREEZE",freezeButton);
     freezeLabel.setText("Freeze", juce::dontSendNotification);
     freezeLabel.setJustificationType(juce::Justification::horizontallyCentred);
     freezeLabel.attachToComponent(&freezeButton, true);
@@ -85,12 +125,15 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     //==========================================================================================//
 
     /* set positions */
+    int spacing = 50;
 
-    timeKnob.setBounds(getWidth()/4, getHeight()-100, 400, 25);
-    dbKnobs[0]->setBounds(getWidth()/4, getHeight()-200, 400, 25);
-    dbKnobs[1]->setBounds(getWidth()/4, getHeight()-150, 400, 25);
-    compressionButton.setBounds(getWidth()-100, getHeight()-100, 25, 25);
-    freezeButton.setBounds(getWidth()-100, getHeight()-150, 25, 25);
+    timeKnob.setBounds(          getWidth()/4,   getHeight()-spacing*4, 400, 50 );
+    gainKnobs[0]->setBounds(     getWidth()/4,   getHeight()-spacing*3, 400, 50 );
+    gainKnobs[1]->setBounds(     getWidth()/4,   getHeight()-spacing*2, 400, 50 );
+    yMaxKnob.setBounds(          getWidth()/4,   getHeight()-spacing*3, 400, 50 );
+    yMinKnob.setBounds(          getWidth()/4,   getHeight()-spacing*2, 400, 50 );
+    compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2, 25,  25 );
+    freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3, 25,  25 );
 }
 
 NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
@@ -103,8 +146,7 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillAll (juce::Colours::black);
     g.setColour(juce::Colours::white);
 
-    g.drawRect(window);
-    plot(g,window);
+    plot(g);
 }
 
 void NewProjectAudioProcessorEditor::resized()
@@ -116,18 +158,31 @@ void NewProjectAudioProcessorEditor::timerCallback()
     repaint();
 }
 
-void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int> rect)
+void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
 {
-    float w = rect.getWidth();
-    float h = rect.getHeight();
-    float x_left = rect.getX();
-    float x_right = rect.getRight();
-    float y_bottom = rect.getY();
-    float y_top = rect.getY() + rect.getHeight();
+
+    float w        = window.getWidth();
+    float h        = window.getHeight();
+    float x_left   = window.getX();
+    float x_right  = window.getRight();
+    float y_bottom = window.getY();
+    float y_top    = y_bottom + h;
     auto compMode = compressionButton.getToggleStateValue().getValue();
 
+    // draw window and x axis
+    g.setColour(juce::Colours::white);
+    g.drawRect(window);
 
+    float numXTicks = 5;
+    for(float i = 0; i < numXTicks; i++)
+    {
+        float scale = i/(numXTicks-1);
+        float xPos = x_right - scale * w;
+        g.drawLine(xPos, y_top, xPos, y_top+10);
+        g.drawText(juce::String(scale * timeKnob.getValue(), 3), xPos - 17, y_top + 15, 40, 10, juce::Justification::left);
+    }
 
+    // read data
     if(audioProcessor.displayCollector.getNumUnread() >= windowBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue())
     {
         audioProcessor.displayCollector.readHead(windowBuffer);
@@ -135,19 +190,30 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
 
     if(!compMode)
     {
-        // oscilloscope mode
+        /* oscilloscope mode */
+
+        // draw y-axis
+        float numYTicks = 5;
+        for(float i = 0; i < numYTicks; i++)
+        {
+            float yPos = y_bottom + i*h/(numYTicks-1);
+            g.drawLine(x_left-10, yPos, x_left, yPos);
+            g.drawText(juce::String(1 - i * 0.5), x_left - 45, yPos - 5, 30, 10, juce::Justification::right);
+        }
+
+        // draw data
         for(int ch = 0; ch < windowBuffer.getNumChannels(); ch++)
         {
             g.setColour(palette[ch]);
             auto data = windowBuffer.getReadPointer(ch);
-            auto gain = juce::Decibels::decibelsToGain(dbKnobs[ch]->getValue());
+            auto gain = juce::Decibels::decibelsToGain(gainKnobs[ch]->getValue());
 
-            for (int i = 0; i < w; i++)
+            for (int i = 1; i < w-1; i++)
             {
-                int x1 = i + x_left;
-                int y1 = juce::jlimit(y_bottom, h + y_bottom, y_bottom + float(h/2. - h * data[i] * gain));
-                int x2 = i + 1 + x_left;
-                int y2 = juce::jlimit(y_bottom, h + y_bottom, y_bottom + float(h/2. - h * data[i + 1] * gain));
+                float x1 = i + x_left;
+                float y1 = juce::jlimit(y_bottom, y_top, y_bottom + float(h/2.f - h * data[i]     * gain));
+                float x2 = i + 1 + x_left;
+                float y2 = juce::jlimit(y_bottom, y_top, y_bottom + float(h/2.f - h * data[i + 1] * gain));
 
                 g.drawLine (x1,y1,x2,y2);
             }
@@ -155,42 +221,43 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g, juce::Rectangle<int
     }
     else
     {
-        // compression mode
+        /* compression mode */
+        float yMin = yMinKnob.getValue();
+        float yMax = yMaxKnob.getValue();
+        if(yMin == yMax)
+        {
+            yMax += 0.0001;
+        }
+
+        // draw y-axis
+        float numYTicks = 10;
+        for(float i = 0; i < numYTicks; i++)
+        {
+            float yPos = y_bottom + i*h/(numYTicks-1);
+            g.drawLine(x_left-10, yPos, x_left, yPos);
+            float curTick = (numYTicks-1-i) * yMax / (numYTicks - 1) + i * yMin / (numYTicks - 1);
+            g.drawText(juce::String(curTick, 3), x_left - 75, yPos - 5, 60, 10, juce::Justification::right);
+        }
+
+        // draw data
         g.setColour(juce::Colours::lightgreen);
         auto input = windowBuffer.getReadPointer(0);
         auto output = windowBuffer.getReadPointer(1);
 
-        for (int i = 0; i < w; i++)
+        for (int i = 1; i < w-1; i++)
         {
-            int x1 = i + x_left;
-            int y1 = juce::jlimit(y_bottom, h + y_bottom, float(h - h/2. * output[i]/input[i]));
-            int x2 = i + 1 + x_left;
-            int y2 = juce::jlimit(y_bottom, h + y_bottom, float(h - h/2. * output[i + 1]/input[i + 1]));
+            float val1 = juce::jmap(juce::Decibels::gainToDecibels(abs(output[i]     / input[i]))    , yMax, yMin, 0.f, h);
+            float val2 = juce::jmap(juce::Decibels::gainToDecibels(abs(output[i + 1] / input[i + 1])), yMax, yMin, 0.f, h);
 
-            if(isfinite(y1) && isfinite(y2))
+            float x1 = i + x_left;
+            float y1 = juce::jlimit(y_bottom, y_top, y_bottom + val1);
+            float x2 = i + 1 + x_left;
+            float y2 = juce::jlimit(y_bottom, y_top, y_bottom + val2);
+
+            if(isfinite(val1) && isfinite(val2) && input[i] != 0 && input[i+1] != 0)
             {
                 g.drawLine (x1,y1,x2,y2);
             }
         }
-    }
-
-    // draw x axis
-    g.setColour(juce::Colours::white);
-    for(float i = 0; i < 5; i++)
-    {
-        g.drawText(juce::String(i/4. * timeKnob.getValue(), 3), x_right - (i/4. * w) - 17, y_top + 15, 40, 10, juce::Justification::left);
-    }
-
-    // draw y-axis
-    if(!compMode)
-    {
-        for(int i = 0; i < 5; i++)
-        {
-            g.drawText(juce::String(-1 + i * 0.5), x_left - 45, y_top - i * h/4 - 5, 30, 10, juce::Justification::right);
-        }
-    }
-    else
-    {
-
     }
 }

@@ -61,16 +61,17 @@ public:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
 
-    void getMinAndMaxOrdered(juce::dsp::AudioBlock<float> block, float &val1, float &val2);
+    void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
 
     ASyncBuffer displayCollector;
 
 private:
     ASyncBuffer audioCollector;
-    juce::AudioBuffer<float> chunk;
-    juce::AudioBuffer<float> minmaxBuffer;
-    int timeSlice; // num samples per pixel
+    juce::AudioBuffer<float> audioBuffer;
+    juce::AudioBuffer<float> interBuffer;
+    float samplesPerPixel; // num samples per pixel
     int numPixels;
+    float counter;
     bool requiresUpdate;
     juce::AudioProcessorValueTreeState parameters;
 

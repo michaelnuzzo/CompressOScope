@@ -24,7 +24,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
-    void plot(juce::Graphics& g, juce::Rectangle<int> rect);
+    void plot(juce::Graphics& g);
     float fract(float v);
 
 private:
@@ -32,11 +32,13 @@ private:
     NewProjectAudioProcessor& audioProcessor;
     juce::AudioBuffer<float> windowBuffer;
     juce::Rectangle<int> window;
-    juce::Label timeLabel, db1Label, db2Label, compressionLabel, freezeLabel;
-    juce::Slider timeKnob;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment;
-    std::array<std::unique_ptr<juce::Slider>,2> dbKnobs;
+    /* parameters */
+    juce::Label timeLabel, gain1Label, gain2Label, compressionLabel, freezeLabel, yMinLabel, yMaxLabel;
+    juce::Slider timeKnob, yMinKnob, yMaxKnob;
+    std::array<std::unique_ptr<juce::Slider>,2> gainKnobs;
     juce::ToggleButton compressionButton, freezeButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, gain1Attachment, gain2Attachment, yMinAttachment, yMaxAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compressionAttachment, freezeAttachment;
     juce::Colour palette[2] {juce::Colours::lightblue, juce::Colours::red};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
