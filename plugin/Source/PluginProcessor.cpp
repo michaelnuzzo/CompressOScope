@@ -157,28 +157,21 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer);
         auto interBlock = juce::dsp::AudioBlock<float>(interBuffer);
 
-        if(numToWrite == 1)
+        // case where
+        if(numToWrite == 1 && samplesPerPixel >= 1)
         {
             interBlock.copyFrom(audioBlock);
             audioCollector.trim(1);
         }
         else if(numToWrite > 1)
         {
+            audioBlock = audioBlock.getSubBlock(0, numToWrite);
             getMinAndMaxOrdered(audioBlock, interBlock);
-            audioCollector.trim(int(audioBlock.getNumSamples()));
+            audioCollector.trim(numToWrite);
         }
         else // (numToWrite < 1)
         {
-            // TODO: why are we getting spikes in this?
-//            int numInterps = 1/samplesPerPixel;
-//                interpolate(curChannel.getSample(0, 0), curChannel.getSample(0, 1), frac(i/numInterps));
-
-            for(int ch = 0; ch < totalNumInputChannels; ch++)
-            {
-                auto interBlockCh = interBlock.getSingleChannelBlock(ch);
-                interBlockCh.fill(audioBlock.getSample(ch, 0));
-            }
-
+            interpolate(audioBlock, interBlock, 1);
             audioCollector.trim(1);
         }
 
@@ -197,6 +190,7 @@ void NewProjectAudioProcessor::updateParameters()
 {
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
+
     // one sample per pixel
     if(samplesPerPixel == 1)
     {
@@ -214,7 +208,7 @@ void NewProjectAudioProcessor::updateParameters()
     // multiple pixels per sample
     else
     {
-        interBuffer.setSize(getTotalNumInputChannels(), int(1/(samplesPerPixel))); // stores interpolated samples
+        interBuffer.setSize(getTotalNumInputChannels(), int(2/(samplesPerPixel))); // stores interpolated samples
         audioBuffer.setSize(getTotalNumInputChannels(), 2);
     }
 
@@ -276,16 +270,43 @@ void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<f
     // val1 is either the min or the max depending on if it came first, and vice versa for val2
 }
 
+void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int type)
+{
+    jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
+    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 1);
+
+    auto numInterps = outBlock.getNumSamples();
+
+    for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
+    {
+        auto pi = inBlock.getChannelPointer(ch);
+        auto po = outBlock.getChannelPointer(ch);
+
+        for(int i = 0; i < numInterps; i++)
+        {
+            if(type == 0) // nearest neighbor
+            {
+                po[i] = (i < numInterps/2) ? pi[0] : pi[1];
+            }
+            else if(type == 1) // linear interpolation
+            {
+                po[i] = pi[0] + (pi[1] - pi[0])*float(i)/float(numInterps);
+            }
+        }
+    }
+}
+
+
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.001f, 5.f  , 0.001f), 1.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"   , "Gain 1"   , juce::NormalisableRange<float>(0.f   , 100.f, 0.001f), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"   , "Gain 2"   , juce::NormalisableRange<float>(0.f   , 100.f, 0.001f), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"    , "Y max"    , juce::NormalisableRange<float>(-200.f, 20.f , 0.001f), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"    , "Y min"    , juce::NormalisableRange<float>(-200.f, 20.f , 0.001f), -60.f));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE", "Comp Mode", false                                                       ));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"  , "Freeze"   , false                                                       ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/5.f), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"   , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"   , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"    , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"    , "Y min"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), -60.f));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE", "Comp Mode", false                                                                ));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"  , "Freeze"   , false                                                                ));
     return { params.begin(), params.end() };
 }
 

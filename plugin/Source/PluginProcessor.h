@@ -62,6 +62,7 @@ public:
     juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
 
     void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
+    void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int type = 0);
 
     ASyncBuffer displayCollector;
 
