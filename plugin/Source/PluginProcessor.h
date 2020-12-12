@@ -72,6 +72,7 @@ private:
     juce::AudioBuffer<float> interBuffer;
     float samplesPerPixel; // num samples per pixel
     int numPixels;
+    int state;
     float counter;
     bool requiresUpdate;
     juce::AudioProcessorValueTreeState parameters;

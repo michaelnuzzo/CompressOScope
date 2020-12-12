@@ -151,28 +151,28 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
     while(audioCollector.getNumUnread() > audioBuffer.getNumSamples())
     {
-        audioCollector.pop(audioBuffer,-1,0); // we will mark samples manually
-
-        int numToWrite = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
         auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer);
         auto interBlock = juce::dsp::AudioBlock<float>(interBuffer);
 
-        // case where
-        if(numToWrite == 1 && samplesPerPixel >= 1)
+        int numToWrite = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
+
+        if(state == 1 || (state == 2 && numToWrite == 1))
         {
+            audioCollector.pop(audioBlock,-1,1);
             interBlock.copyFrom(audioBlock);
-            audioCollector.trim(1);
         }
-        else if(numToWrite > 1)
+        else if(state == 2)
         {
+
+            numToWrite = int(2*counter*(samplesPerPixel)) - int(2*(counter-1)*(samplesPerPixel));
+            audioCollector.pop(audioBlock,-1,numToWrite);
             audioBlock = audioBlock.getSubBlock(0, numToWrite);
             getMinAndMaxOrdered(audioBlock, interBlock);
-            audioCollector.trim(numToWrite);
         }
-        else // (numToWrite < 1)
+        else if(state == 3)
         {
+            audioCollector.pop(audioBlock,-1,1);
             interpolate(audioBlock, interBlock, 1);
-            audioCollector.trim(1);
         }
 
         displayCollector.push(interBuffer);
@@ -194,6 +194,7 @@ void NewProjectAudioProcessor::updateParameters()
     // one sample per pixel
     if(samplesPerPixel == 1)
     {
+        state = 1;
         // in this case, we simply write the audio buffer to the display buffer
         interBuffer.setSize(getTotalNumInputChannels(), 1); // does nothing
         audioBuffer.setSize(getTotalNumInputChannels(), 1);
@@ -201,13 +202,15 @@ void NewProjectAudioProcessor::updateParameters()
     // multiple samples per pixel
     else if(samplesPerPixel > 1)
     {
+        state = 2;
         // in this case, we need to find min and max values
         interBuffer.setSize(getTotalNumInputChannels(), 2); // stores min & max
-        audioBuffer.setSize(getTotalNumInputChannels(), int(samplesPerPixel) * 2);
+        audioBuffer.setSize(getTotalNumInputChannels(), int(samplesPerPixel + 1) * 2);
     }
     // multiple pixels per sample
     else
     {
+        state = 3;
         interBuffer.setSize(getTotalNumInputChannels(), int(2/(samplesPerPixel))); // stores interpolated samples
         audioBuffer.setSize(getTotalNumInputChannels(), 2);
     }
@@ -227,7 +230,7 @@ void NewProjectAudioProcessor::updateParameters()
         }
     }
 
-    counter = 0;
+    counter = 1;
 
     requiresUpdate = false;
 }
@@ -300,7 +303,7 @@ void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> in
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/5.f), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"   , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"   , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"    , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
