@@ -31,15 +31,18 @@ private:
     void timerCallback() override;
     NewProjectAudioProcessor& audioProcessor;
     juce::AudioBuffer<float> windowBuffer;
+    juce::AudioBuffer<float> DEBUG_BUFFER;
     juce::Rectangle<int> window;
     /* parameters */
-    juce::Label timeLabel, gain1Label, gain2Label, compressionLabel, freezeLabel, yMinLabel, yMaxLabel;
+    juce::Label timeLabel, compressionLabel, freezeLabel, yMinLabel, yMaxLabel;
     juce::Slider timeKnob, yMinKnob, yMaxKnob;
     std::array<std::unique_ptr<juce::Slider>,2> gainKnobs;
+    std::array<std::unique_ptr<juce::Label>,2> gainLabels;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>,2> gainAttachments;
     juce::ToggleButton compressionButton, freezeButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, gain1Attachment, gain2Attachment, yMinAttachment, yMaxAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, yMinAttachment, yMaxAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compressionAttachment, freezeAttachment;
-    juce::Colour palette[2] {juce::Colours::lightblue, juce::Colours::red};
+    juce::Colour palette[4] {juce::Colours::dodgerblue, juce::Colours::firebrick, juce::Colours::lightgreen, juce::Colours::green};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
 };

@@ -10,9 +10,9 @@
 
 #include "ASyncBuffer.h"
 
-ASyncBuffer::ASyncBuffer(int size) : abstractFifo(size)
+ASyncBuffer::ASyncBuffer(int numChannels, int size) : abstractFifo(size)
 {
-    circularBuffer.setSize(2,size);
+    circularBuffer.setSize(numChannels,size);
 }
 
 ASyncBuffer::~ASyncBuffer()
@@ -148,5 +148,11 @@ void ASyncBuffer::reset()
 void ASyncBuffer::resize(int newSize)
 {
     abstractFifo.setTotalSize(newSize);
-    circularBuffer.setSize(2, newSize, true, true);
+    circularBuffer.setSize(circularBuffer.getNumChannels(), newSize, true, true);
+}
+
+void ASyncBuffer::resize(int numChannels, int newSize)
+{
+    abstractFifo.setTotalSize(newSize);
+    circularBuffer.setSize(numChannels, newSize, true, true);
 }

@@ -15,7 +15,7 @@
 class ASyncBuffer
 {
 public:
-    ASyncBuffer(int size);
+    ASyncBuffer(int numChannels, int size);
     ~ASyncBuffer();
 
     void push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite = -1, int numToMark = -1, int ID = -1);
@@ -24,6 +24,7 @@ public:
     void trim(int numToTrim);
     void reset();
     void resize(int newSize);
+    void resize(int numChannels, int newSize);
     inline int getNumUnread() {return abstractFifo.getNumReady();}
     inline int getSpaceLeft() {return abstractFifo.getFreeSpace();}
     inline int getTotalSize() {return abstractFifo.getTotalSize();}

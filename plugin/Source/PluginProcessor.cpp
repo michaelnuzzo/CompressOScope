@@ -21,7 +21,7 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
                      #endif
                        )
 #endif
-                    , displayCollector(1), audioCollector(1)
+                    , displayCollector(3,1), audioCollector(2,1)
                     , parameters(*this, nullptr, "Parameters", createParameters())
 {
     displayCollector.setIsOverwritable(true);
@@ -100,7 +100,7 @@ void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 {
     displayCollector.reset();
 
-    audioCollector.resize(sampleRate*5);
+    audioCollector.resize(getTotalNumInputChannels(),sampleRate*5);
 
     setUpdate();
 }
@@ -153,35 +153,74 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     {
         auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer);
         auto interBlock = juce::dsp::AudioBlock<float>(interBuffer);
+        int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
+        int numToWrite;
 
-        int numToWrite = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
-
-        if(state == 1 || (state == 2 && numToWrite == 1))
+        if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
         {
-            audioCollector.pop(audioBlock,-1,1);
-            interBlock.copyFrom(audioBlock);
+            auto audioSubBlock   = audioBlock.getSubBlock(0, 1);
+            auto interAudioBlock = interBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
+            audioCollector.pop(audioSubBlock);
+            interAudioBlock.copyFrom(audioSubBlock);
+            numToWrite = 1;
         }
         else if(state == 2)
         {
-
-            numToWrite = int(2*counter*(samplesPerPixel)) - int(2*(counter-1)*(samplesPerPixel));
-            audioCollector.pop(audioBlock,-1,numToWrite);
-            audioBlock = audioBlock.getSubBlock(0, numToWrite);
-            getMinAndMaxOrdered(audioBlock, interBlock);
+            numToRead *= 2;
+            auto audioSubBlock = audioBlock.getSubBlock(0, numToRead);
+            auto interAudioBlock = interBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
+            audioCollector.pop(audioSubBlock);
+            getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
+            numToWrite = 2;
         }
         else if(state == 3)
         {
-            audioCollector.pop(audioBlock,-1,1);
-            interpolate(audioBlock, interBlock, 1);
+            numToRead = 2;
+            numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
+            auto audioSubBlock = audioBlock; // .getSubBlock(0, numToRead);
+            auto interAudioBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
+            audioCollector.pop(audioSubBlock,-1,1);
+            interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
+        }
+        else
+        {
+            numToWrite = 0;
         }
 
-        displayCollector.push(interBuffer);
+        auto a = audioBlock.getChannelPointer(0);
+        auto b = audioBlock.getChannelPointer(1);
+        if(state == 3)
+        {
+            a = interBlock.getChannelPointer(0);
+            b = interBlock.getChannelPointer(1);
+        }
+        auto c = interBlock.getChannelPointer(2);
+
+        // save compression data
+        for(int i = 0; i < numToWrite; i++)
+        {
+            int idx = int(float(i) * float(numToRead) / float(numToWrite));
+            if(state == 3)
+                idx = i;
+
+            float val = abs(b[idx] / a[idx]);
+
+            if(!isfinite(val) || a[idx] == 0 || abs(b[idx]) == 0)
+            {
+                val = -1;
+            }
+            c[i] = val;
+        }
+
+        displayCollector.push(interBuffer,-1,numToWrite);
 
         // We leave an allowance to account for concurrent access
         while(displayCollector.getNumUnread() > numPixels + 20)
         {
             displayCollector.trim(1);
         }
+        audioBuffer.clear();
+        interBuffer.clear();
         counter++;
     }
 }
@@ -190,13 +229,12 @@ void NewProjectAudioProcessor::updateParameters()
 {
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
-
     // one sample per pixel
     if(samplesPerPixel == 1)
     {
         state = 1;
         // in this case, we simply write the audio buffer to the display buffer
-        interBuffer.setSize(getTotalNumInputChannels(), 1); // does nothing
+        interBuffer.setSize(getTotalNumInputChannels() + 1, 1); // does nothing
         audioBuffer.setSize(getTotalNumInputChannels(), 1);
     }
     // multiple samples per pixel
@@ -204,14 +242,14 @@ void NewProjectAudioProcessor::updateParameters()
     {
         state = 2;
         // in this case, we need to find min and max values
-        interBuffer.setSize(getTotalNumInputChannels(), 2); // stores min & max
-        audioBuffer.setSize(getTotalNumInputChannels(), int(samplesPerPixel + 1) * 2);
+        interBuffer.setSize(getTotalNumInputChannels() + 1, 2); // stores min & max
+        audioBuffer.setSize(getTotalNumInputChannels(), int(samplesPerPixel) * 2 + 2);
     }
     // multiple pixels per sample
     else
     {
         state = 3;
-        interBuffer.setSize(getTotalNumInputChannels(), int(2/(samplesPerPixel))); // stores interpolated samples
+        interBuffer.setSize(getTotalNumInputChannels() + 1, int(1/(samplesPerPixel) + 2)); // stores interpolated samples
         audioBuffer.setSize(getTotalNumInputChannels(), 2);
     }
 
@@ -223,10 +261,10 @@ void NewProjectAudioProcessor::updateParameters()
         displayCollector.resize(numPixels*2);
         if(displayCollector.getNumUnread() == 0)
         {
-            juce::AudioBuffer<float> initializeWithZeros;
-            initializeWithZeros.setSize(getTotalNumInputChannels(), displayCollector.getTotalSize()-1);
-            initializeWithZeros.clear();
-            displayCollector.push(initializeWithZeros);
+            juce::AudioBuffer<float> initWithZeros;
+            initWithZeros.setSize(getTotalNumInputChannels() + 1, displayCollector.getTotalSize()-1);
+            initWithZeros.clear();
+            displayCollector.push(initWithZeros);
         }
     }
 
@@ -240,56 +278,78 @@ void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<f
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
     jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2);
 
-    // find the min and max values in the audio block, but preserve their order of appearance
+    int n = int(inBlock.getNumSamples());
+
     for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
         auto pi = inBlock.getChannelPointer(ch);
         auto po = outBlock.getChannelPointer(ch);
-
         float val1 = 1; // temp min
         float val2 = -1; // temp max
         int idx1 = 0;
         int idx2 = 0;
-        for(int i = 0; i < inBlock.getNumSamples(); i++)
+        if(n > 2)
         {
-            if(pi[i] < val1)
+            // find the min and max values in the audio block, but preserve their order of appearance
+            for(int i = 0; i < n; i++)
             {
-                val1 = pi[i];
-                idx1 = i;
+                if(pi[i] < val1)
+                {
+                    val1 = pi[i];
+                    idx1 = i;
+                }
+                if(pi[i] > val2)
+                {
+                    val2 = pi[i];
+                    idx2 = i;
+                }
             }
-            if(pi[i] > val2)
+            if(idx1 > idx2)
             {
-                val2 = pi[i];
-                idx2 = i;
+                std::swap(val1, val2);
             }
+            po[0] = val1;
+            po[1] = val2;
+            // val1 is either the min or the max depending on if it came first, and vice versa for val2
+
         }
-        if(idx1 > idx2)
+        else
         {
-            std::swap(val1, val2);
+            // just return the max or min depending on if we are above or below zero
+            if(pi[0] < 0 && pi[1] < 0)
+                if(pi[0] < pi[1])
+                    po[0] = pi[0];
+                else
+                    po[0] = pi[1];
+            else if(pi[0] > 0 && pi[1] > 0)
+                if(pi[0] > pi[1])
+                    po[0] = pi[1];
+                else
+                    po[0] = pi[0];
+            else
+                po[0] = 0;
+            po[1] = 0;
         }
-        po[0] = val1;
-        po[1] = val2;
     }
-    // val1 is either the min or the max depending on if it came first, and vice versa for val2
 }
 
-void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int type)
+void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type)
 {
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
-    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 1);
+//    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 1);
 
-    auto numInterps = outBlock.getNumSamples();
+    auto n = outBlock.getNumSamples();
 
     for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
         auto pi = inBlock.getChannelPointer(ch);
         auto po = outBlock.getChannelPointer(ch);
 
-        for(int i = 0; i < numInterps; i++)
+        for(int i = 0; i < n; i++)
         {
             if(type == 0) // nearest neighbor
             {
-                po[i] = (i < numInterps/2) ? pi[0] : pi[1];
+                po[i] = (i < n/2) ? pi[0] : pi[1];
             }
             else if(type == 1) // linear interpolation
             {

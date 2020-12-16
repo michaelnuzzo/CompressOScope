@@ -27,8 +27,11 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     window.setTop(padding/2);
 
     // initialize display buffer
-    windowBuffer.setSize(audioProcessor.getTotalNumInputChannels(), window.getWidth());
+    windowBuffer.setSize(audioProcessor.getTotalNumInputChannels() + 1, window.getWidth());
     windowBuffer.clear();
+    DEBUG_BUFFER.setSize(1, window.getWidth());
+    DEBUG_BUFFER.clear();
+
 
     // talk to audio thread
     audioProcessor.setNumPixels(window.getWidth());
@@ -42,8 +45,8 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
 
     /* set parameters */
 
-    // TODO: Make this log
     // time slider
+    timeKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::white);
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     timeKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     timeKnob.onValueChange = [this] {audioProcessor.setNumPixels(window.getWidth()); audioProcessor.setUpdate();};
@@ -53,27 +56,25 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     timeLabel.attachToComponent(&timeKnob, true);
     addAndMakeVisible(timeKnob);
 
-    // channel 1 gain slider
-    gainKnobs[0] = std::make_unique<juce::Slider>();
-    gainKnobs[0]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    gainKnobs[0]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
-    gain1Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"GAIN1",*gainKnobs[0]);
-    gain1Label.setText("Channel 1 Gain", juce::dontSendNotification);
-    gain1Label.setJustificationType(juce::Justification::horizontallyCentred);
-    gain1Label.attachToComponent(gainKnobs[0].get(), true);
-    addAndMakeVisible(gainKnobs[0].get());
-
-    // channel 2 gain slider
-    gainKnobs[1] = std::make_unique<juce::Slider>();
-    gainKnobs[1]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    gainKnobs[1]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
-    gain2Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"GAIN2",*gainKnobs[1]);
-    gain2Label.setText("Channel 2 Gain", juce::dontSendNotification);
-    gain2Label.setJustificationType(juce::Justification::horizontallyCentred);
-    gain2Label.attachToComponent(gainKnobs[1].get(), true);
-    addAndMakeVisible(gainKnobs[1].get());
+    for(int ch = 0; ch < audioProcessor.getTotalNumInputChannels(); ch++)
+    {
+        // channel gain sliders
+        gainKnobs[ch] = std::make_unique<juce::Slider>();
+        gainKnobs[ch]->setColour(juce::Slider::ColourIds::thumbColourId, palette[ch]);
+        gainKnobs[ch]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+        gainKnobs[ch]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+        juce::String name = juce::String("GAIN") + juce::String(ch+1);
+        gainAttachments[ch] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(), name, *gainKnobs[ch]);
+        gainLabels[ch] = std::make_unique<juce::Label>();
+        juce::String label = juce::String("Channel ") + juce::String(ch+1) + juce::String(" Gain");
+        gainLabels[ch]->setText(label, juce::dontSendNotification);
+        gainLabels[ch]->setJustificationType(juce::Justification::horizontallyCentred);
+        gainLabels[ch]->attachToComponent(gainKnobs[ch].get(), true);
+        addAndMakeVisible(gainKnobs[ch].get());
+    }
 
     // ymax slider
+    yMaxKnob.setColour(juce::Slider::ColourIds::thumbColourId, palette[3]);
     yMaxKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     yMaxKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     yMaxAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMAX",yMaxKnob);
@@ -83,7 +84,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     addAndMakeVisible(yMaxKnob);
 
     // ymin slider
+    yMinKnob.setColour(juce::Slider::ColourIds::thumbColourId, palette[3]);
     yMinKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+//    yMinKnob.setSliderStyle(juce::Slider::SliderStyle::TwoValueHorizontal);
     yMinKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     yMinAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMIN",yMinKnob);
     yMinLabel.setText("Y min", juce::dontSendNotification);
@@ -95,7 +98,6 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     compressionButton.onStateChange = [this]
     {
         // show the appropriate slider
-        // TODO: make sure this runs on initialization (maybe avpts will take care of this)
         auto compMode = compressionButton.getToggleStateValue().getValue();
         gainKnobs[0]->setVisible(!compMode);
         gainKnobs[1]->setVisible(!compMode);
@@ -169,6 +171,14 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     float y_top    = y_bottom + h;
     auto compMode = compressionButton.getToggleStateValue().getValue();
 
+    int s = audioProcessor.getState();
+    if(s == 1)
+        g.drawText(juce::String("equal")        , 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+    else if(s == 2)
+        g.drawText(juce::String("extrapolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+    else if(s == 3)
+        g.drawText(juce::String("interpolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+
     // draw window and x axis
     g.setColour(juce::Colours::white);
     g.drawRect(window);
@@ -202,7 +212,7 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
         }
 
         // draw data
-        for(int ch = 0; ch < windowBuffer.getNumChannels(); ch++)
+        for(int ch = 0; ch < audioProcessor.getTotalNumInputChannels(); ch++)
         {
             g.setColour(palette[ch]);
             auto data = windowBuffer.getReadPointer(ch);
@@ -240,21 +250,20 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
         }
 
         // draw data
-        g.setColour(juce::Colours::lightgreen);
-        auto input = windowBuffer.getReadPointer(0);
-        auto output = windowBuffer.getReadPointer(1);
+        g.setColour(palette[2]);
+        auto comp = windowBuffer.getReadPointer(2);
 
         for (int i = 1; i < w-1; i++)
         {
-            float val1 = juce::jmap(juce::Decibels::gainToDecibels(abs(output[i]     / input[i]))    , yMax, yMin, 0.f, h);
-            float val2 = juce::jmap(juce::Decibels::gainToDecibels(abs(output[i + 1] / input[i + 1])), yMax, yMin, 0.f, h);
+            float val1 = juce::jmap(juce::Decibels::gainToDecibels(comp[i]    ), yMax, yMin, 0.f, h);
+            float val2 = juce::jmap(juce::Decibels::gainToDecibels(comp[i + 1]), yMax, yMin, 0.f, h);
 
             float x1 = i + x_left;
             float y1 = juce::jlimit(y_bottom, y_top, y_bottom + val1);
             float x2 = i + 1 + x_left;
             float y2 = juce::jlimit(y_bottom, y_top, y_bottom + val2);
 
-            if(isfinite(val1) && isfinite(val2) && input[i] != 0 && input[i+1] != 0)
+            if(comp[i] >= 0 && comp[i + 1] >= 0)
             {
                 g.drawLine (x1,y1,x2,y2);
             }

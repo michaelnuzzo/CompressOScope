@@ -56,13 +56,14 @@ public:
 
     inline void setUpdate() {requiresUpdate = true;}
     inline void setNumPixels(int num) {numPixels = num;}
+    inline int getState() {return state;};
     void updateParameters();
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
 
     void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
-    void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int type = 0);
+    void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
 
     ASyncBuffer displayCollector;
 
@@ -70,10 +71,11 @@ private:
     ASyncBuffer audioCollector;
     juce::AudioBuffer<float> audioBuffer;
     juce::AudioBuffer<float> interBuffer;
-    float samplesPerPixel; // num samples per pixel
+    juce::AudioBuffer<float> rmsBuffer;
+    double samplesPerPixel; // num samples per pixel
     int numPixels;
     int state;
-    float counter;
+    unsigned long counter;
     bool requiresUpdate;
     juce::AudioProcessorValueTreeState parameters;
 
