@@ -64,6 +64,7 @@ public:
 
     void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
     void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
+//    void medfilt(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int order);
 
     ASyncBuffer displayCollector;
 
@@ -71,7 +72,8 @@ private:
     ASyncBuffer audioCollector;
     juce::AudioBuffer<float> audioBuffer;
     juce::AudioBuffer<float> interBuffer;
-    juce::AudioBuffer<float> rmsBuffer;
+    juce::AudioBuffer<float> copyBuffer;
+//    juce::AudioBuffer<float> medianBuffer;
     double samplesPerPixel; // num samples per pixel
     int numPixels;
     int state;

@@ -100,7 +100,9 @@ void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 {
     displayCollector.reset();
 
-    audioCollector.resize(getTotalNumInputChannels(),sampleRate*5);
+    audioCollector.resize(getTotalNumInputChannels() + 1,sampleRate*5);
+
+    copyBuffer.setSize(getTotalNumInputChannels() + 1, samplesPerBlock);
 
     setUpdate();
 }
@@ -147,39 +149,57 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         updateParameters();
     }
 
-    audioCollector.push(buffer);
+    auto rawBuffer = juce::dsp::AudioBlock<float>(buffer);
+    auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, buffer.getNumSamples());
+    auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, getTotalNumInputChannels());
+    auto compCopyBlock  = copyBlock.getSubsetChannelBlock(2, 1);
 
+    audioCopyBlock.copyFrom(rawBuffer);
+
+    auto in1 = audioCopyBlock.getChannelPointer(0);
+    auto in2 = audioCopyBlock.getChannelPointer(1);
+    auto out  = compCopyBlock.getChannelPointer(0);
+    for(int i = 0; i < buffer.getNumSamples(); i++)
+    {
+        out[i] = abs(in2[i]/in1[i]);
+    }
+
+    audioCollector.push(copyBlock);
+
+    // save audio data
     while(audioCollector.getNumUnread() > audioBuffer.getNumSamples())
     {
-        auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer);
-        auto interBlock = juce::dsp::AudioBlock<float>(interBuffer);
+        auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer); // used to process samples read from collector
+        auto interBlock = juce::dsp::AudioBlock<float>(interBuffer); // used to collect processed samples and push to the display
+        auto audioSubBlock = juce::dsp::AudioBlock<float>(audioBlock);
+        auto interAudioBlock = juce::dsp::AudioBlock<float>(interBlock);
         int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
         int numToWrite;
 
         if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
         {
-            auto audioSubBlock   = audioBlock.getSubBlock(0, 1);
-            auto interAudioBlock = interBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            audioCollector.pop(audioSubBlock);
+            audioCollector.pop(audioBlock,numToRead,numToRead);
+            audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
+            interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
             interAudioBlock.copyFrom(audioSubBlock);
             numToWrite = 1;
         }
         else if(state == 2)
         {
             numToRead *= 2;
-            auto audioSubBlock = audioBlock.getSubBlock(0, numToRead);
-            auto interAudioBlock = interBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            audioCollector.pop(audioSubBlock);
+            audioCollector.pop(audioBlock,numToRead,numToRead);
+            audioSubBlock = audioSubBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(0, getTotalNumInputChannels());
+            interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
             getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
             numToWrite = 2;
         }
         else if(state == 3)
         {
             numToRead = 2;
+            audioCollector.pop(audioBlock,numToRead,numToRead - 1);
             numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-            auto audioSubBlock = audioBlock; // .getSubBlock(0, numToRead);
-            auto interAudioBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            audioCollector.pop(audioSubBlock,-1,1);
+            audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, getTotalNumInputChannels()); // .getSubBlock(0, numToRead);
+            interAudioBlock = interAudioBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
             interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
         }
         else
@@ -187,29 +207,16 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             numToWrite = 0;
         }
 
-        auto a = audioBlock.getChannelPointer(0);
-        auto b = audioBlock.getChannelPointer(1);
+        // save compression data
+        auto audioCompBlock = audioBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(2, 1);
+        auto interCompBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(2, 1);
         if(state == 3)
         {
-            a = interBlock.getChannelPointer(0);
-            b = interBlock.getChannelPointer(1);
+            interpolate(audioCompBlock, interCompBlock, numToWrite, 1);
         }
-        auto c = interBlock.getChannelPointer(2);
-
-        // save compression data
-        for(int i = 0; i < numToWrite; i++)
+        else
         {
-            int idx = int(float(i) * float(numToRead) / float(numToWrite));
-            if(state == 3)
-                idx = i;
-
-            float val = abs(b[idx] / a[idx]);
-
-            if(!isfinite(val) || a[idx] == 0 || abs(b[idx]) == 0)
-            {
-                val = -1;
-            }
-            c[i] = val;
+            interCompBlock.copyFrom(audioCompBlock);
         }
 
         displayCollector.push(interBuffer,-1,numToWrite);
@@ -235,7 +242,7 @@ void NewProjectAudioProcessor::updateParameters()
         state = 1;
         // in this case, we simply write the audio buffer to the display buffer
         interBuffer.setSize(getTotalNumInputChannels() + 1, 1); // does nothing
-        audioBuffer.setSize(getTotalNumInputChannels(), 1);
+        audioBuffer.setSize(getTotalNumInputChannels() + 1, 1);
     }
     // multiple samples per pixel
     else if(samplesPerPixel > 1)
@@ -243,18 +250,18 @@ void NewProjectAudioProcessor::updateParameters()
         state = 2;
         // in this case, we need to find min and max values
         interBuffer.setSize(getTotalNumInputChannels() + 1, 2); // stores min & max
-        audioBuffer.setSize(getTotalNumInputChannels(), int(samplesPerPixel) * 2 + 2);
+        audioBuffer.setSize(getTotalNumInputChannels() + 1, int(samplesPerPixel) * 2 + 2);
     }
     // multiple pixels per sample
     else
     {
         state = 3;
         interBuffer.setSize(getTotalNumInputChannels() + 1, int(1/(samplesPerPixel) + 2)); // stores interpolated samples
-        audioBuffer.setSize(getTotalNumInputChannels(), 2);
+        audioBuffer.setSize(getTotalNumInputChannels() + 1, 2);
     }
 
     // if the window size has been changed
-    if(numPixels*2 != displayCollector.getTotalSize())
+    if(numPixels*2 != displayCollector.getTotalSize() && numPixels > 0)
     {
         // We double the size to leave extra room to account for
         // concurrent access between the audio and graphics threads
@@ -311,7 +318,6 @@ void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<f
             po[0] = val1;
             po[1] = val2;
             // val1 is either the min or the max depending on if it came first, and vice versa for val2
-
         }
         else
         {
@@ -358,6 +364,26 @@ void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> in
         }
     }
 }
+
+void NewProjectAudioProcessor::medfilt(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int order)
+{
+    jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
+    jassert(inBlock.getNumSamples() == outBlock.getNumSamples());
+
+    int n = int(inBlock.getNumSamples());
+
+    for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
+    {
+        auto pi = inBlock.getChannelPointer(ch);
+        auto po = outBlock.getChannelPointer(ch);
+        for(int i = 0; i < n; i++)
+        {
+            po[0] = 0;
+            po[1] = 0;
+        }
+    }
+}
+
 
 
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()

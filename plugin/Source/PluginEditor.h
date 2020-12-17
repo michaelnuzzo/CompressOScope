@@ -25,7 +25,6 @@ public:
     void resized() override;
 
     void plot(juce::Graphics& g);
-    float fract(float v);
 
 private:
     void timerCallback() override;
