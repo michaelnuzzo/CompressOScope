@@ -148,11 +148,13 @@ void ASyncBuffer::reset()
 void ASyncBuffer::resize(int newSize)
 {
     abstractFifo.setTotalSize(newSize);
-    circularBuffer.setSize(circularBuffer.getNumChannels(), newSize, true, true);
+//    circularBuffer.setSize(circularBuffer.getNumChannels(), newSize, true, true);
+    circularBuffer.setSize(circularBuffer.getNumChannels(), newSize);
 }
 
 void ASyncBuffer::resize(int numChannels, int newSize)
 {
     abstractFifo.setTotalSize(newSize);
-    circularBuffer.setSize(numChannels, newSize, true, true);
+//    circularBuffer.setSize(numChannels, newSize, true, true);
+    circularBuffer.setSize(numChannels, newSize);
 }

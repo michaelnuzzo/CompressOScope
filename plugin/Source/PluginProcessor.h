@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "ASyncBuffer.h"
+#include "MedianFilter.h"
 
 //==============================================================================
 /**
@@ -64,7 +65,6 @@ public:
 
     void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
     void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
-//    void medfilt(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int order);
 
     ASyncBuffer displayCollector;
 
@@ -73,7 +73,7 @@ private:
     juce::AudioBuffer<float> audioBuffer;
     juce::AudioBuffer<float> interBuffer;
     juce::AudioBuffer<float> copyBuffer;
-//    juce::AudioBuffer<float> medianBuffer;
+    MedianFilter medianFilter;
     double samplesPerPixel; // num samples per pixel
     int numPixels;
     int state;

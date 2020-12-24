@@ -6,6 +6,9 @@
               companyEmail="Michael_Nuzzo@student.uml.edu">
   <MAINGROUP id="KbAKKg" name="CompressOScope">
     <GROUP id="{B5482F00-475E-E2F6-AC85-071AE2BD53C0}" name="Source">
+      <FILE id="LRvrkx" name="MedianFilter.cpp" compile="1" resource="0"
+            file="Source/MedianFilter.cpp"/>
+      <FILE id="weWDl3" name="MedianFilter.h" compile="0" resource="0" file="Source/MedianFilter.h"/>
       <FILE id="LJaGiS" name="ASyncBuffer.cpp" compile="1" resource="0" file="Source/ASyncBuffer.cpp"/>
       <FILE id="ooTTbt" name="ASyncBuffer.h" compile="0" resource="0" file="Source/ASyncBuffer.h"/>
       <FILE id="EF5B9w" name="PluginProcessor.cpp" compile="1" resource="0"

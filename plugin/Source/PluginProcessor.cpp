@@ -21,7 +21,7 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
                      #endif
                        )
 #endif
-                    , displayCollector(3,1), audioCollector(2,1)
+                    , displayCollector(3,1), audioCollector(2,1), medianFilter(1)
                     , parameters(*this, nullptr, "Parameters", createParameters())
 {
     displayCollector.setIsOverwritable(true);
@@ -161,7 +161,9 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     auto out  = compCopyBlock.getChannelPointer(0);
     for(int i = 0; i < buffer.getNumSamples(); i++)
     {
-        out[i] = abs(in2[i]/in1[i]);
+        float compVal = abs(in2[i]/in1[i]);
+        medianFilter.push(compVal);
+        out[i] = medianFilter.getMedian();
     }
 
     audioCollector.push(copyBlock);
@@ -234,6 +236,12 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
 void NewProjectAudioProcessor::updateParameters()
 {
+    float filterLengthInMs = 10;
+    medianFilter.setOrder(getSampleRate() * filterLengthInMs/100.f);
+//    medianFilter.setOrder(5);
+
+    // TODO: bug if numPixels is uninitialized. need to make sure of that somehow
+
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
     // one sample per pixel
@@ -274,6 +282,7 @@ void NewProjectAudioProcessor::updateParameters()
             displayCollector.push(initWithZeros);
         }
     }
+
 
     counter = 1;
 
@@ -364,26 +373,6 @@ void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> in
         }
     }
 }
-
-void NewProjectAudioProcessor::medfilt(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, int order)
-{
-    jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
-    jassert(inBlock.getNumSamples() == outBlock.getNumSamples());
-
-    int n = int(inBlock.getNumSamples());
-
-    for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
-    {
-        auto pi = inBlock.getChannelPointer(ch);
-        auto po = outBlock.getChannelPointer(ch);
-        for(int i = 0; i < n; i++)
-        {
-            po[0] = 0;
-            po[1] = 0;
-        }
-    }
-}
-
 
 
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
