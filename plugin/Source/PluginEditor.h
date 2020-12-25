@@ -33,13 +33,13 @@ private:
     juce::AudioBuffer<float> DEBUG_BUFFER;
     juce::Rectangle<int> window;
     /* parameters */
-    juce::Label timeLabel, compressionLabel, freezeLabel, yMinLabel, yMaxLabel;
-    juce::Slider timeKnob, yMinKnob, yMaxKnob;
+    juce::Label timeLabel, filterLabel, compressionLabel, freezeLabel, yMinLabel, yMaxLabel;
+    juce::Slider timeKnob, filterKnob, yMinKnob, yMaxKnob;
     std::array<std::unique_ptr<juce::Slider>,2> gainKnobs;
     std::array<std::unique_ptr<juce::Label>,2> gainLabels;
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>,2> gainAttachments;
     juce::ToggleButton compressionButton, freezeButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, yMinAttachment, yMaxAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, filterAttachment, yMinAttachment, yMaxAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compressionAttachment, freezeAttachment;
     juce::Colour palette[4] {juce::Colours::dodgerblue, juce::Colours::firebrick, juce::Colours::lightgreen, juce::Colours::green};
 

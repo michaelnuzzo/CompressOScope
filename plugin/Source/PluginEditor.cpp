@@ -49,12 +49,25 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     timeKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::white);
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     timeKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    timeKnob.setTextValueSuffix(" s");
     timeKnob.onValueChange = [this] {audioProcessor.setNumPixels(window.getWidth()); audioProcessor.setUpdate();};
     timeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"TIME",timeKnob);
     timeLabel.setText("Time Axis", juce::dontSendNotification);
     timeLabel.setJustificationType(juce::Justification::horizontallyCentred);
     timeLabel.attachToComponent(&timeKnob, true);
     addAndMakeVisible(timeKnob);
+
+    // filter slider
+    filterKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::white);
+    filterKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    filterKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    filterKnob.setTextValueSuffix(" ms");
+    filterKnob.onValueChange = [this] {audioProcessor.setUpdate();};
+    filterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"FILTER",filterKnob);
+    filterLabel.setText("Filter Length (ms)", juce::dontSendNotification);
+    filterLabel.setJustificationType(juce::Justification::horizontallyCentred);
+    filterLabel.attachToComponent(&filterKnob, true);
+    addAndMakeVisible(filterKnob);
 
     for(int ch = 0; ch < audioProcessor.getTotalNumInputChannels(); ch++)
     {
@@ -63,6 +76,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
         gainKnobs[ch]->setColour(juce::Slider::ColourIds::thumbColourId, palette[ch]);
         gainKnobs[ch]->setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
         gainKnobs[ch]->setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+        gainKnobs[ch]->setTextValueSuffix(" dBFS");
         juce::String name = juce::String("GAIN") + juce::String(ch+1);
         gainAttachments[ch] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(), name, *gainKnobs[ch]);
         gainLabels[ch] = std::make_unique<juce::Label>();
@@ -77,6 +91,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     yMaxKnob.setColour(juce::Slider::ColourIds::thumbColourId, palette[3]);
     yMaxKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     yMaxKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
+    yMaxKnob.setTextValueSuffix(" dBFS");
     yMaxAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMAX",yMaxKnob);
     yMaxLabel.setText("Y max", juce::dontSendNotification);
     yMaxLabel.setJustificationType(juce::Justification::horizontallyCentred);
@@ -86,7 +101,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     // ymin slider
     yMinKnob.setColour(juce::Slider::ColourIds::thumbColourId, palette[3]);
     yMinKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-//    yMinKnob.setSliderStyle(juce::Slider::SliderStyle::TwoValueHorizontal);
+    yMinKnob.setTextValueSuffix(" dBFS");
     yMinKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     yMinAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"YMIN",yMinKnob);
     yMinLabel.setText("Y min", juce::dontSendNotification);
@@ -103,12 +118,14 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
         gainKnobs[1]->setVisible(!compMode);
         yMinKnob.setVisible(compMode);
         yMaxKnob.setVisible(compMode);
+        filterKnob.setVisible(compMode);
     };
     auto compMode = compressionButton.getToggleStateValue().getValue();
     gainKnobs[0]->setVisible(!compMode);
     gainKnobs[1]->setVisible(!compMode);
     yMinKnob.setVisible(compMode);
     yMaxKnob.setVisible(compMode);
+    filterKnob.setVisible(compMode);
 
     compressionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"COMPMODE",compressionButton);
     compressionLabel.setText("Compression Mode", juce::dontSendNotification);
@@ -128,14 +145,16 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
 
     /* set positions */
     int spacing = 50;
+    int gap = spacing/2;
 
-    timeKnob.setBounds(          getWidth()/4,   getHeight()-spacing*4, 400, 50 );
-    gainKnobs[0]->setBounds(     getWidth()/4,   getHeight()-spacing*3, 400, 50 );
-    gainKnobs[1]->setBounds(     getWidth()/4,   getHeight()-spacing*2, 400, 50 );
-    yMaxKnob.setBounds(          getWidth()/4,   getHeight()-spacing*3, 400, 50 );
-    yMinKnob.setBounds(          getWidth()/4,   getHeight()-spacing*2, 400, 50 );
-    compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2, 25,  25 );
-    freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3, 25,  25 );
+    timeKnob.setBounds(          getWidth()/4,   getHeight()-spacing*4-gap, 400, 50 );
+    filterKnob.setBounds(        getWidth()/4,   getHeight()-spacing*1-gap, 400, 50 );
+    gainKnobs[0]->setBounds(     getWidth()/4,   getHeight()-spacing*3-gap, 400, 50 );
+    gainKnobs[1]->setBounds(     getWidth()/4,   getHeight()-spacing*2-gap, 400, 50 );
+    yMaxKnob.setBounds(          getWidth()/4,   getHeight()-spacing*3-gap, 400, 50 );
+    yMinKnob.setBounds(          getWidth()/4,   getHeight()-spacing*2-gap, 400, 50 );
+    compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2-gap, 25,  25 );
+    freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3-gap, 25,  25 );
 }
 
 NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
@@ -171,13 +190,13 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     float y_top    = y_bottom + h;
     auto compMode = compressionButton.getToggleStateValue().getValue();
 
-    int s = audioProcessor.getState();
-    if(s == 1)
-        g.drawText(juce::String("equal")        , 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
-    else if(s == 2)
-        g.drawText(juce::String("extrapolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
-    else if(s == 3)
-        g.drawText(juce::String("interpolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+//    int s = audioProcessor.getState();
+//    if(s == 1)
+//        g.drawText(juce::String("equal")        , 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+//    else if(s == 2)
+//        g.drawText(juce::String("extrapolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
+//    else if(s == 3)
+//        g.drawText(juce::String("interpolating"), 45, getHeight() - 45, 100, 10, juce::Justification::horizontallyCentred);
 
     // draw window and x axis
     g.setColour(juce::Colours::white);

@@ -236,12 +236,9 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
 void NewProjectAudioProcessor::updateParameters()
 {
-    float filterLengthInMs = 10;
-    medianFilter.setOrder(getSampleRate() * filterLengthInMs/100.f);
-//    medianFilter.setOrder(5);
-
     // TODO: bug if numPixels is uninitialized. need to make sure of that somehow
 
+    medianFilter.setOrder(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f);
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
     // one sample per pixel
@@ -283,7 +280,6 @@ void NewProjectAudioProcessor::updateParameters()
         }
     }
 
-
     counter = 1;
 
     requiresUpdate = false;
@@ -291,6 +287,7 @@ void NewProjectAudioProcessor::updateParameters()
 
 void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock)
 {
+    // TODO: for some reason i hit a bug here once because inblock.getnumsamples was 0 and block.getnumsamples was 0
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
     jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2);
 
@@ -379,6 +376,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::cr
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"  , "Filter"   , juce::NormalisableRange<float>(1.f    , 100.f, 0.01f         ), 1.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"   , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"   , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"    , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));

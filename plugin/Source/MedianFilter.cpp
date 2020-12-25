@@ -172,7 +172,7 @@ void MedianFilter::pop()
         }
         jassert(lowest->prev == nullptr);
 //        jassert(highest->next == nullptr);
-        jassert(oldNode != highMedian && oldNode != lowMedian && oldNode != median);
+//        jassert(oldNode != highMedian && oldNode != lowMedian && oldNode != median);
 
         *oldNode = llNode(); // reset
         auto cur = lowest;
@@ -202,7 +202,6 @@ void MedianFilter::pop()
                 cur = cur->next;
             }
         }
-
     }
 }
 
@@ -273,16 +272,14 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
                 highMedian = median->next;
                 jassert(lowMedian != changedNode && highMedian != changedNode);
                 jassert(lowMedian->data <= highMedian->data);
-
             }
             else if(median->data == changedNode->data) // popped something with the same value as the median
             {
-                swapNodes(changedNode, median); //
+                swapNodes(changedNode, median);
                 lowMedian = changedNode->prev;
                 highMedian = changedNode->next;
                 jassert(lowMedian != changedNode && highMedian != changedNode);
                 jassert(lowMedian->data <= highMedian->data);
-
             }
             else if(changedNode->data > median->data) // popped above the median
             {
@@ -290,7 +287,6 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
                 highMedian = median;
                 jassert(lowMedian != changedNode && highMedian != changedNode);
                 jassert(lowMedian->data <= highMedian->data);
-
             }
             else if(changedNode->data < median->data) // popped below the median
             {
@@ -304,16 +300,23 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
         }
         else // is now odd
         {
+            // TODO: add swapNodes here
             auto trueMedian = (lowMedian->data + highMedian->data)/2.f;
-            if(lowMedian->data == changedNode->data) // popped the low median
+            if(lowMedian->data == changedNode->data && highMedian->data == changedNode->data && lowMedian != changedNode && highMedian != changedNode)
+            {
+                swapNodes(changedNode, highMedian);
+                median = lowMedian;
+                jassert(median != changedNode && lowMedian != changedNode);
+            }
+            else if(lowMedian->data == changedNode->data && highMedian != changedNode) // popped the low median or equivalent
             {
                 median = highMedian;
-                jassert(median != changedNode);
+                jassert(median != changedNode && highMedian != changedNode);
             }
-            else if(highMedian->data == changedNode->data)  // popped the high median
+            else if(highMedian->data == changedNode->data && lowMedian != changedNode)  // popped the high median or equivalent
             {
                 median = lowMedian;
-                jassert(median != changedNode);
+                jassert(median != changedNode && lowMedian != changedNode);
             }
             else if(changedNode->data > trueMedian) // popped above the median
             {
