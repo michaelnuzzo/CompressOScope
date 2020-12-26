@@ -36,6 +36,7 @@ private:
         llNode* next;
     };
     void updateMedian(llNode* changedllNode, bool justPushed);
+    void checkAndDebugMedian();
     void swapNodes(llNode* A, llNode* B);
 
     juce::Array<llNode> linkedList;

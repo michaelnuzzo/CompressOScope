@@ -22,7 +22,7 @@ MedianFilter::~MedianFilter()
 
 void MedianFilter::setOrder(int newOrder)
 {
-    if(newOrder - abstractFifo.getTotalSize() != 0)
+    if((newOrder+1) - abstractFifo.getTotalSize() != 0)
     {
         abstractFifo.setTotalSize(newOrder+1);
         linkedList.resize(newOrder+1);
@@ -52,10 +52,6 @@ void MedianFilter::push(float val)
     {
         numValidNodes++;
         llNode* newNode = &linkedList.getRawDataPointer()[start1];
-        jassert(isnan(newNode->data));
-        jassert(newNode->next == nullptr);
-        jassert(newNode->prev == nullptr);
-
 
         newNode->data = val;
 
@@ -72,69 +68,33 @@ void MedianFilter::push(float val)
             {
                 cur = cur->next;
             }
-            jassert(newNode->next == nullptr);
 
             if(newNode->data <= cur->data) // base case
             {
                 if(cur != lowest)
                 {
-                    jassert(cur->prev != nullptr);
                     cur->prev->next = newNode;
                     newNode->prev = cur->prev;
                 }
                 else
                 {
-                    jassert(cur->prev == nullptr);
-                    jassert(newNode->prev == nullptr);
                     lowest = newNode;
                 }
                 newNode->next = cur;
                 cur->prev = newNode;
-                jassert(lowest->prev == nullptr);
             }
             else // newNode is the highest node
             {
-                jassert(cur->next == nullptr);
-                jassert(newNode->next == nullptr);
                 newNode->prev = cur;
                 cur->next = newNode;
                 highest = newNode;
-                jassert(highest->next == nullptr);
 
             }
-            jassert(lowest->prev == nullptr);
-            jassert(highest->next == nullptr);
             updateMedian(newNode, true);
+            jassert(!isnan(newNode->data));
         }
     }
-
-    auto cur = lowest;
-    if(hasEvenLength())
-    {
-        for(int i = 0; i < numValidNodes; i++)
-        {
-            if(i == int(numValidNodes / 2) - 1)
-            {
-                jassert(cur == lowMedian);
-            }
-            else if(i == int(numValidNodes / 2) - 1)
-            {
-                jassert(cur == highMedian);
-            }
-            cur = cur->next;
-        }
-    }
-    else
-    {
-        for(int i = 0; i < numValidNodes; i++)
-        {
-            if(i == int(numValidNodes / 2))
-            {
-                jassert(cur == median);
-            }
-            cur = cur->next;
-        }
-    }
+//    checkAndDebugMedian();
 }
 
 void MedianFilter::pop()
@@ -154,68 +114,31 @@ void MedianFilter::pop()
 
         updateMedian(oldNode, false);
 
-        if(oldNode == highest) // oldNode->next == nullptr
+        if(oldNode->next == nullptr && oldNode->prev != nullptr) // oldNode->next == nullptr
         {
             highest = oldNode->prev;
         }
-        else
+        if(oldNode->next != nullptr)
         {
             oldNode->next->prev = oldNode->prev;
         }
-        if(oldNode == lowest) // oldNode->prev == nullptr
+        if(oldNode == lowest && oldNode->next != nullptr) // oldNode->prev == nullptr
         {
             lowest = oldNode->next;
         }
-        else
+        else if(oldNode->prev != nullptr)
         {
             oldNode->prev->next = oldNode->next;
         }
-        jassert(lowest->prev == nullptr);
-//        jassert(highest->next == nullptr);
-//        jassert(oldNode != highMedian && oldNode != lowMedian && oldNode != median);
 
         *oldNode = llNode(); // reset
-        auto cur = lowest;
-        if(hasEvenLength())
-        {
-            for(int i = 0; i < numValidNodes; i++)
-            {
-                if(i == int(numValidNodes / 2) - 1)
-                {
-                    jassert(cur == lowMedian);
-                }
-                else if(i == int(numValidNodes / 2) - 1)
-                {
-                    jassert(cur == highMedian);
-                }
-                cur = cur->next;
-            }
-        }
-        else
-        {
-            for(int i = 0; i < numValidNodes; i++)
-            {
-                if(i == int(numValidNodes / 2))
-                {
-                    jassert(cur == median);
-                }
-                cur = cur->next;
-            }
-        }
+
+//        checkAndDebugMedian();
     }
 }
 
 void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
 {
-    if(median != nullptr)
-    {
-        jassert(!isnan(median->data));
-    }
-    else
-    {
-        jassert(!isnan(lowMedian->data) && !isnan(highMedian->data));
-    }
-
     counter++;
     auto isNowEven = hasEvenLength();
     if(justPushed)
@@ -237,26 +160,25 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
                 lowMedian = median->prev;
                 highMedian = median;
             }
-            jassert(lowMedian->data <= highMedian->data);
-            jassert(lowMedian != nullptr && highMedian != nullptr);
             median = nullptr;
         }
         else // is now odd
         {
-            if(changedNode->data > highMedian->data)
+            if(numValidNodes == 1)
+            {
+                median = changedNode;
+            }
+            else if(changedNode->data > highMedian->data)
             {
                 median = highMedian;
-                jassert(median != nullptr && median->next != nullptr && median->prev != nullptr);
             }
             else if(changedNode->data < lowMedian->data)
             {
                 median = lowMedian;
-                jassert(median != nullptr && median->next != nullptr && median->prev != nullptr);
             }
             else
             {
                 median = highMedian->prev;
-                jassert(median != nullptr);
             }
             lowMedian = nullptr;
             highMedian = nullptr;
@@ -266,94 +188,126 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
     {
         if(isNowEven)
         {
-            if(median == changedNode)
+            if(numValidNodes == 0)
+            {
+                lowest = nullptr;
+                highest = nullptr;
+                median = nullptr;
+            }
+            else if(median == changedNode)
             {
                 lowMedian = median->prev;
                 highMedian = median->next;
-                jassert(lowMedian != changedNode && highMedian != changedNode);
-                jassert(lowMedian->data <= highMedian->data);
             }
             else if(median->data == changedNode->data) // popped something with the same value as the median
             {
                 swapNodes(changedNode, median);
                 lowMedian = changedNode->prev;
                 highMedian = changedNode->next;
-                jassert(lowMedian != changedNode && highMedian != changedNode);
-                jassert(lowMedian->data <= highMedian->data);
             }
             else if(changedNode->data > median->data) // popped above the median
             {
                 lowMedian = median->prev;
                 highMedian = median;
-                jassert(lowMedian != changedNode && highMedian != changedNode);
-                jassert(lowMedian->data <= highMedian->data);
             }
             else if(changedNode->data < median->data) // popped below the median
             {
                 lowMedian = median;
                 highMedian = median->next;
-                jassert(lowMedian != changedNode && highMedian != changedNode);
-                jassert(lowMedian->data <= highMedian->data);
             }
             median = nullptr;
-            jassert(lowMedian->data <= highMedian->data);
         }
         else // is now odd
         {
-            // TODO: add swapNodes here
             auto trueMedian = (lowMedian->data + highMedian->data)/2.f;
             if(lowMedian->data == changedNode->data && highMedian->data == changedNode->data && lowMedian != changedNode && highMedian != changedNode)
             {
                 swapNodes(changedNode, highMedian);
                 median = lowMedian;
-                jassert(median != changedNode && lowMedian != changedNode);
             }
-            else if(lowMedian->data == changedNode->data && highMedian != changedNode) // popped the low median or equivalent
+            else if((changedNode->data < trueMedian) || (lowMedian->data == changedNode->data && highMedian != changedNode)) // popped the low median or equivalent
             {
                 median = highMedian;
-                jassert(median != changedNode && highMedian != changedNode);
             }
-            else if(highMedian->data == changedNode->data && lowMedian != changedNode)  // popped the high median or equivalent
+            else if((changedNode->data > trueMedian) || (highMedian->data == changedNode->data && lowMedian != changedNode))  // popped the high median or equivalent
             {
                 median = lowMedian;
-                jassert(median != changedNode && lowMedian != changedNode);
-            }
-            else if(changedNode->data > trueMedian) // popped above the median
-            {
-                median = lowMedian;
-                jassert(median != changedNode);
-            }
-            else if(changedNode->data < trueMedian) // popped below the median
-            {
-                median = highMedian;
-                jassert(median != changedNode);
             }
             lowMedian = nullptr;
             highMedian = nullptr;
         }
-//        jassert(lowMedian != changedNode && highMedian != changedNode && median != changedNode);
     }
+}
+
+void MedianFilter::checkAndDebugMedian()
+{
+    /* objective check for median */
+    // use this to verify the algorithm if you make changes,
+    // but disable before releasing — it adds lots of time on
+    // to the calculation
+        auto cur = lowest;
+        if(hasEvenLength())
+            for(int i = 0; i < numValidNodes; i++)
+            {
+                jassert(!isnan(cur->data));
+                if(i == int(numValidNodes / 2) - 1)
+                    jassert(cur == lowMedian);
+                else if(i == int(numValidNodes / 2) - 1)
+                    jassert(cur == highMedian);
+                cur = cur->next;
+            }
+        else
+            for(int i = 0; i < numValidNodes; i++)
+            {
+                jassert(!isnan(cur->data));
+                if(i == int(numValidNodes / 2))
+                    jassert(cur == median);
+
+                cur = cur->next;
+            }
 }
 
 void MedianFilter::swapNodes(llNode* a, llNode* b)
 {
     if(a->next == b) // adjacent
     {
-        a->prev->next = b;
-        b->next->prev = a;
-        a->next = b->next;
-        b->prev = a->prev;
-        b->next = a;
-        a->prev = b;
+        if(b->next == nullptr)
+        {
+            a->prev->next = b;
+            b->prev = b->prev;
+            b->next = a;
+            a->prev = b;
+            a->next = nullptr;
+        }
+        else
+        {
+            a->prev->next = b;
+            b->next->prev = a;
+            a->next = b->next;
+            b->prev = a->prev;
+            b->next = a;
+            a->prev = b;
+        }
     }
     else if(b->next == a) // reverse adjacent
     {
-        a->next->prev = b;
-        b->prev->next = a;
-        b->next = a->next;
-        a->prev = b->prev;
-        a->next = b;
-        b->prev = a;
+        if(a->next == nullptr)
+        {
+            b->prev->next = a;
+            a->prev = b->prev;
+            a->next = b;
+            b->prev = a;
+            b->next = nullptr;
+        }
+        else
+        {
+            a->next->prev = b;
+            b->prev->next = a;
+            b->next = a->next;
+            a->prev = b->prev;
+            a->next = b;
+            b->prev = a;
+        }
     }
     else if(a->prev == nullptr) // a == beginning of list
     {
