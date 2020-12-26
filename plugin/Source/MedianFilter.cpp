@@ -40,6 +40,7 @@ void MedianFilter::push(float val)
 {
     if(abstractFifo.getFreeSpace() == 0)
     {
+        // overwrite fifo circularly
         pop();
     }
     int start1, size1, start2, size2;
@@ -51,8 +52,8 @@ void MedianFilter::push(float val)
     if(!isnan(val))
     {
         numValidNodes++;
-        llNode* newNode = &linkedList.getRawDataPointer()[start1];
 
+        llNode* newNode = &linkedList.getRawDataPointer()[start1];
         newNode->data = val;
 
         if(lowest == nullptr) // first time through
@@ -63,13 +64,14 @@ void MedianFilter::push(float val)
         }
         else
         {
+            // search through until we find a node higher than or equal to our new node
             llNode* cur = lowest;
             while(cur->next != nullptr && newNode->data > cur->data)
             {
                 cur = cur->next;
             }
 
-            if(newNode->data <= cur->data) // base case
+            if(newNode->data <= cur->data) // base case, this node is the first higher or equal node
             {
                 if(cur != lowest)
                 {
@@ -88,10 +90,8 @@ void MedianFilter::push(float val)
                 newNode->prev = cur;
                 cur->next = newNode;
                 highest = newNode;
-
             }
-            updateMedian(newNode, true);
-            jassert(!isnan(newNode->data));
+            updateMedian(newNode, true); // mark the new median
         }
     }
 //    checkAndDebugMedian();
@@ -99,14 +99,13 @@ void MedianFilter::push(float val)
 
 void MedianFilter::pop()
 {
-    auto ll = linkedList.getRawDataPointer();
     int start1, size1, start2, size2;
     abstractFifo.prepareToRead(1, start1, size1, start2, size2);
     jassert(size1 == 1);
     jassert(size2 == 0);
     abstractFifo.finishedRead(1);
 
-    llNode* oldNode = &ll[start1];
+    llNode* oldNode = &linkedList.getRawDataPointer()[start1];
 
     if(!isnan(oldNode->data))
     {
@@ -139,7 +138,6 @@ void MedianFilter::pop()
 
 void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
 {
-    counter++;
     auto isNowEven = hasEvenLength();
     if(justPushed)
     {
@@ -150,12 +148,7 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
                 lowMedian = median;
                 highMedian = median->next;
             }
-            else if(changedNode->data < median->data)
-            {
-                lowMedian = median->prev;
-                highMedian = median;
-            }
-            else
+            else // changedNode->data < median->data or changedNode->data == median->data
             {
                 lowMedian = median->prev;
                 highMedian = median;
@@ -164,7 +157,7 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
         }
         else // is now odd
         {
-            if(numValidNodes == 1)
+            if(numValidNodes == 1) // first time through
             {
                 median = changedNode;
             }
@@ -188,20 +181,19 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
     {
         if(isNowEven)
         {
-            if(numValidNodes == 0)
+            if(numValidNodes == 0) // popped last node
             {
                 lowest = nullptr;
                 highest = nullptr;
                 median = nullptr;
             }
-            else if(median == changedNode)
-            {
-                lowMedian = median->prev;
-                highMedian = median->next;
-            }
             else if(median->data == changedNode->data) // popped something with the same value as the median
             {
-                swapNodes(changedNode, median);
+                if(median != changedNode)
+                {
+                    // update the changed node to be the median so we know where to move
+                    swapNodes(changedNode, median);
+                }
                 lowMedian = changedNode->prev;
                 highMedian = changedNode->next;
             }
@@ -219,17 +211,16 @@ void MedianFilter::updateMedian(llNode* changedNode, bool justPushed)
         }
         else // is now odd
         {
-            auto trueMedian = (lowMedian->data + highMedian->data)/2.f;
             if(lowMedian->data == changedNode->data && highMedian->data == changedNode->data && lowMedian != changedNode && highMedian != changedNode)
             {
                 swapNodes(changedNode, highMedian);
                 median = lowMedian;
             }
-            else if((changedNode->data < trueMedian) || (lowMedian->data == changedNode->data && highMedian != changedNode)) // popped the low median or equivalent
+            else if(changedNode->data <= lowMedian->data && highMedian != changedNode) // popped the low median or equivalent
             {
                 median = highMedian;
             }
-            else if((changedNode->data > trueMedian) || (highMedian->data == changedNode->data && lowMedian != changedNode))  // popped the high median or equivalent
+            else if(changedNode->data >= highMedian->data && lowMedian != changedNode)  // popped the high median or equivalent
             {
                 median = lowMedian;
             }
@@ -262,126 +253,80 @@ void MedianFilter::checkAndDebugMedian()
                 jassert(!isnan(cur->data));
                 if(i == int(numValidNodes / 2))
                     jassert(cur == median);
-
                 cur = cur->next;
             }
 }
 
 void MedianFilter::swapNodes(llNode* a, llNode* b)
 {
+    if(b->prev == nullptr || b->next == nullptr || b->next == a)
+    {
+        // doing this vastly reduces the number of cases we need to check for
+        std::swap(a,b);
+    }
+
     if(a->next == b) // adjacent
     {
         if(b->next == nullptr)
         {
-            a->prev->next = b;
-            b->prev = b->prev;
-            b->next = a;
-            a->prev = b;
             a->next = nullptr;
         }
         else
         {
-            a->prev->next = b;
             b->next->prev = a;
             a->next = b->next;
-            b->prev = a->prev;
-            b->next = a;
-            a->prev = b;
         }
-    }
-    else if(b->next == a) // reverse adjacent
-    {
-        if(a->next == nullptr)
-        {
-            b->prev->next = a;
-            a->prev = b->prev;
-            a->next = b;
-            b->prev = a;
-            b->next = nullptr;
-        }
-        else
-        {
-            a->next->prev = b;
-            b->prev->next = a;
-            b->next = a->next;
-            a->prev = b->prev;
-            a->next = b;
-            b->prev = a;
-        }
+        a->prev->next = b;
+        b->prev = a->prev;
+        b->next = a;
+        a->prev = b;
     }
     else if(a->prev == nullptr) // a == beginning of list
     {
+        a->next->prev = b;
+        b->prev->next = a;
+
         if(b->next == nullptr) // b == end of list
         {
-            a->next->prev = b;
-            b->prev->next = a;
             a->prev = b->prev;
             b->next = a->next;
             a->next = nullptr;
-            b->prev = nullptr;
             highest = a;
         }
         else // b has prev and next pointers
         {
-            a->next->prev = b;
-            b->prev->next = a;
             b->next->prev = a;
             a->prev = b->prev;
             llNode* tmp = a->next;
             a->next = b->next;
             b->next = tmp;
-            b->prev = nullptr;
         }
+        b->prev = nullptr;
+
         lowest = b;
     }
     else if(a->next == nullptr) // a == end of list
     {
+        a->prev->next = b;
+        b->next->prev = a;
+
         if(b->prev == nullptr) // b == beginning of list
         {
-            a->prev->next = b;
-            b->next->prev = a;
             b->prev = a->prev;
             a->next = b->next;
             a->prev = nullptr;
-            b->next = nullptr;
             lowest = a;
         }
         else
         {
-            a->prev->next = b;
             b->prev->next = a;
-            b->next->prev = a;
             llNode* tmp = a->prev;
             a->prev = b->prev;
             b->prev = tmp;
             a->next = b->next;
-            b->next = nullptr;
         }
+        b->next = nullptr;
         highest = b;
-    }
-    else if(b->prev == nullptr) // b == lowest, we know here that a->next != nullptr
-    {
-        a->prev->next = b;
-        a->next->prev = b;
-        b->next->prev = a;
-        llNode* tmp = a->next;
-        a->next = b->next;
-        b->next = tmp;
-        b->prev = a->prev;
-        a->prev = nullptr;
-        lowest = a;
-    }
-    else if(b->next == nullptr) // b == highest, we know here that a->prev != nullptr
-    {
-        a->prev->next = b;
-        a->next->prev = b;
-        b->prev->next = a;
-        llNode* tmp = a->prev;
-        a->prev = b->prev;
-        b->prev = tmp;
-        b->next = a->next;
-        a->next = nullptr;
-        highest = a;
     }
     else // base case — nodes aren't related or at edges
     {
@@ -414,7 +359,7 @@ float MedianFilter::getMedian()
     }
     else
     {
-        output = 0;
+        output = -1;
     }
     return output;
 }

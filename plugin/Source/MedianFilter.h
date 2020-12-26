@@ -47,8 +47,6 @@ private:
     llNode* lowMedian;
     llNode* highMedian;
     int numValidNodes;
-    int counter = 0;
-
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MedianFilter)
