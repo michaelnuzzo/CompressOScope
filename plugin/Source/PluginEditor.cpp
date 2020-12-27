@@ -44,14 +44,12 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     getLookAndFeel().setColour(juce::ToggleButton::ColourIds::tickDisabledColourId, juce::Colours::lightgrey);
     getLookAndFeel().setColour(juce::Label::ColourIds::textColourId, juce::Colours::lightgrey);
 
-
-
     //==========================================================================================//
 
     /* set parameters */
 
     // time slider
-    timeKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::white);
+    timeKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::lightgrey);
     timeKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     timeKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     timeKnob.setTextValueSuffix(" s");
@@ -63,7 +61,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     addAndMakeVisible(timeKnob);
 
     // filter slider
-    filterKnob.setColour(juce::Slider::ColourIds::thumbColourId, juce::Colours::white);
+    filterKnob.setColour(juce::Slider::ColourIds::thumbColourId, palette[3]);
     filterKnob.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
     filterKnob.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, false, 100, 20);
     filterKnob.setTextValueSuffix(" ms");
@@ -170,6 +168,8 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     yMinKnob.setBounds(          getWidth()/3,   getHeight()-spacing*2-gap, 400, 50 );
     compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2-gap, 25,  25 );
     freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3-gap, 25,  25 );
+
+    audioProcessor.setReady(true);
 }
 
 NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
@@ -208,26 +208,12 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     auto compMode = compressionButton.getToggleStateValue().getValue();
     juce::String txt;
 
-    int s = audioProcessor.getState();
-    if(s == 1)
-    {
-        txt = "Zoom = 1:1";
-        g.drawText(juce::String(txt), 45, getHeight() - 45, f.getStringWidth(txt), fh, juce::Justification::left);
-    }
-    else if(s == 2)
-    {
-        txt = "Zoomed out";
-        g.drawText(juce::String(txt), 45, getHeight() - 45, f.getStringWidth(txt), fh, juce::Justification::left);
-    }
-    else if(s == 3)
-    {
-        txt = "Zoomed in";
-        g.drawText(juce::String(txt), 45, getHeight() - 45, f.getStringWidth(txt), fh, juce::Justification::left);
-    }
+    txt = "Zoom = ";
+    txt += juce::String(100*1/audioProcessor.getRatio(),1);
+    txt += "%";
+    g.drawText(juce::String(txt), x_right-100, y_top + 50, f.getStringWidth(txt), fh, juce::Justification::left);
 
     // draw x axis
-    g.setColour(juce::Colours::lightgrey);
-
     float numXTicks = 5;
     for(float i = 0; i < numXTicks; i++)
     {

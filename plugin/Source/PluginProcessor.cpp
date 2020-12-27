@@ -21,7 +21,7 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
                      #endif
                        )
 #endif
-                    , displayCollector(3,1), audioCollector(2,1), medianFilter(1)
+                    , displayCollector(3,1), audioCollector(2,1), medianFilter(1), ready(false)
                     , parameters(*this, nullptr, "Parameters", createParameters())
 {
     displayCollector.setIsOverwritable(true);
@@ -137,107 +137,116 @@ bool NewProjectAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 
 void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
-
-    if(requiresUpdate)
+    if(ready)
     {
-        updateParameters();
-    }
+        juce::ScopedNoDenormals noDenormals;
+        auto totalNumInputChannels  = getTotalNumInputChannels();
+        auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    auto rawBuffer = juce::dsp::AudioBlock<float>(buffer);
-    auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, buffer.getNumSamples());
-    auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, getTotalNumInputChannels());
-    auto compCopyBlock  = copyBlock.getSubsetChannelBlock(2, 1);
+        for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+            buffer.clear (i, 0, buffer.getNumSamples());
 
-    audioCopyBlock.copyFrom(rawBuffer);
-
-    auto in1 = audioCopyBlock.getChannelPointer(0);
-    auto in2 = audioCopyBlock.getChannelPointer(1);
-    auto out  = compCopyBlock.getChannelPointer(0);
-    for(int i = 0; i < buffer.getNumSamples(); i++)
-    {
-        float compVal = abs(in2[i]/in1[i]);
-        medianFilter.push(compVal);
-        out[i] = medianFilter.getMedian();
-    }
-
-    audioCollector.push(copyBlock);
-
-    // save audio data
-    while(audioCollector.getNumUnread() > audioBuffer.getNumSamples())
-    {
-        auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer); // used to process samples read from collector
-        auto interBlock = juce::dsp::AudioBlock<float>(interBuffer); // used to collect processed samples and push to the display
-        auto audioSubBlock = juce::dsp::AudioBlock<float>(audioBlock);
-        auto interAudioBlock = juce::dsp::AudioBlock<float>(interBlock);
-        int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
-        int numToWrite;
-
-        if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
+        if(requiresUpdate)
         {
-            audioCollector.pop(audioBlock,numToRead,numToRead);
-            audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            interAudioBlock.copyFrom(audioSubBlock);
-            numToWrite = 1;
-        }
-        else if(state == 2)
-        {
-            numToRead *= 2;
-            audioCollector.pop(audioBlock,numToRead,numToRead);
-            audioSubBlock = audioSubBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
-            numToWrite = 2;
-        }
-        else if(state == 3)
-        {
-            numToRead = 2;
-            audioCollector.pop(audioBlock,numToRead,numToRead - 1);
-            numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-            audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, getTotalNumInputChannels()); // .getSubBlock(0, numToRead);
-            interAudioBlock = interAudioBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
-            interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
-        }
-        else
-        {
-            numToWrite = 0;
+            updateParameters();
         }
 
-        // save compression data
-        auto audioCompBlock = audioBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(2, 1);
-        auto interCompBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(2, 1);
-        if(state == 3)
+        auto rawBuffer = juce::dsp::AudioBlock<float>(buffer);
+        auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, buffer.getNumSamples());
+        auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, getTotalNumInputChannels());
+        auto compCopyBlock  = copyBlock.getSubsetChannelBlock(2, 1);
+
+        audioCopyBlock.copyFrom(rawBuffer);
+
+        auto in1 = audioCopyBlock.getChannelPointer(0);
+        auto in2 = audioCopyBlock.getChannelPointer(1);
+        auto out  = compCopyBlock.getChannelPointer(0);
+        for(int i = 0; i < buffer.getNumSamples(); i++)
         {
-            interpolate(audioCompBlock, interCompBlock, numToWrite, 1);
-        }
-        else
-        {
-            interCompBlock.copyFrom(audioCompBlock);
+            float compVal = abs(in2[i]/in1[i]);
+            // TODO: add checkbox for median filter
+//            if(filter)
+//            {
+                medianFilter.push(compVal);
+                out[i] = medianFilter.getMedian();
+//            }
+//            else
+//            {
+//                out[i] = compVal;
+//            }
         }
 
-        displayCollector.push(interBuffer,-1,numToWrite);
+        audioCollector.push(copyBlock);
 
-        // We leave an allowance to account for concurrent access
-        while(displayCollector.getNumUnread() > numPixels + 20)
+        // save audio data
+        while(audioCollector.getNumUnread() > audioBuffer.getNumSamples())
         {
-            displayCollector.trim(1);
+            auto audioBlock = juce::dsp::AudioBlock<float>(audioBuffer); // used to process samples read from collector
+            auto interBlock = juce::dsp::AudioBlock<float>(interBuffer); // used to collect processed samples and push to the display
+            auto audioSubBlock = juce::dsp::AudioBlock<float>(audioBlock);
+            auto interAudioBlock = juce::dsp::AudioBlock<float>(interBlock);
+            int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
+            int numToWrite;
+
+            if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
+            {
+                audioCollector.pop(audioBlock,numToRead,numToRead);
+                audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                interAudioBlock.copyFrom(audioSubBlock);
+                numToWrite = 1;
+            }
+            else if(state == 2)
+            {
+                numToRead *= 2;
+                audioCollector.pop(audioBlock,numToRead,numToRead);
+                audioSubBlock = audioSubBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
+                numToWrite = 2;
+            }
+            else if(state == 3)
+            {
+                numToRead = 2;
+                audioCollector.pop(audioBlock,numToRead,numToRead - 1);
+                numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
+                audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, getTotalNumInputChannels()); // .getSubBlock(0, numToRead);
+                interAudioBlock = interAudioBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
+            }
+            else
+            {
+                numToWrite = 0;
+            }
+
+            // save compression data
+            auto audioCompBlock = audioBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(2, 1);
+            auto interCompBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(2, 1);
+            if(state == 3)
+            {
+                interpolate(audioCompBlock, interCompBlock, numToWrite, 1);
+            }
+            else
+            {
+                interCompBlock.copyFrom(audioCompBlock);
+            }
+
+            displayCollector.push(interBuffer,-1,numToWrite);
+
+            // We leave an allowance to account for concurrent access
+            while(displayCollector.getNumUnread() > numPixels + 20)
+            {
+                displayCollector.trim(1);
+            }
+            audioBuffer.clear();
+            interBuffer.clear();
+            counter++;
         }
-        audioBuffer.clear();
-        interBuffer.clear();
-        counter++;
     }
 }
 
 void NewProjectAudioProcessor::updateParameters()
 {
-    // TODO: bug if numPixels is uninitialized. need to make sure of that somehow
-
     medianFilter.setOrder(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f);
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
@@ -287,15 +296,14 @@ void NewProjectAudioProcessor::updateParameters()
 
 void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock)
 {
-    // TODO: for some reason we sometimes hit a bug here because inblock.getnumsamples was 0 and block.getnumsamples was 0
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
-    jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2); // TODO: commenting this didnt help
+    jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2);
 
     int n = int(inBlock.getNumSamples());
 
     for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
-        auto pi = inBlock.getChannelPointer(ch); // TODO: errors here
+        auto pi = inBlock.getChannelPointer(ch);
         auto po = outBlock.getChannelPointer(ch);
         float val1 = 1; // temp min
         float val2 = -1; // temp max
