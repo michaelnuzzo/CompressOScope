@@ -42,6 +42,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> timeAttachment, filterAttachment, yMinAttachment, yMaxAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compressionAttachment, freezeAttachment;
     juce::Colour palette[4] {juce::Colours::dodgerblue, juce::Colours::firebrick, juce::Colours::lightgreen, juce::Colours::green};
+    juce::Font f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
 };

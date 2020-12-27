@@ -287,15 +287,15 @@ void NewProjectAudioProcessor::updateParameters()
 
 void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock)
 {
-    // TODO: for some reason i hit a bug here once because inblock.getnumsamples was 0 and block.getnumsamples was 0
+    // TODO: for some reason we sometimes hit a bug here because inblock.getnumsamples was 0 and block.getnumsamples was 0
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
-    jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2);
+    jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2); // TODO: commenting this didnt help
 
     int n = int(inBlock.getNumSamples());
 
     for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
-        auto pi = inBlock.getChannelPointer(ch);
+        auto pi = inBlock.getChannelPointer(ch); // TODO: errors here
         auto po = outBlock.getChannelPointer(ch);
         float val1 = 1; // temp min
         float val2 = -1; // temp max
