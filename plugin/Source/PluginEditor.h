@@ -30,7 +30,6 @@ private:
     void timerCallback() override;
     NewProjectAudioProcessor& audioProcessor;
     juce::AudioBuffer<float> windowBuffer;
-    juce::AudioBuffer<float> DEBUG_BUFFER;
     juce::Rectangle<int> window;
     /* parameters */
     juce::Label timeLabel, filterLabel, compressionLabel, freezeLabel, smoothingLabel, yMinLabel, yMaxLabel;
@@ -43,6 +42,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compressionAttachment, freezeAttachment, smoothingAttachment;
     juce::Colour palette[4] {juce::Colours::dodgerblue, juce::Colours::firebrick, juce::Colours::lightgreen, juce::Colours::green};
     juce::Font f;
+//    juce::Image logo;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
 };

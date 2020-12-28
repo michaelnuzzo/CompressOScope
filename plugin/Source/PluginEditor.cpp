@@ -21,6 +21,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     startTimerHz(60);
 
     f = juce::Font("Gill Sans", "Regular", 15.f);
+//    float rescale = 1/6.f;
+//    logo = juce::ImageCache::getFromMemory (BinaryData::logo_png, BinaryData::logo_pngSize);
+//    logo = logo.rescaled(logo.getWidth()*rescale, logo.getHeight()*rescale);
 
     // oscilloscope window
     int padding = 50;
@@ -31,9 +34,6 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     // initialize display buffer
     windowBuffer.setSize(audioProcessor.getTotalNumInputChannels() + 1, window.getWidth());
     windowBuffer.clear();
-    DEBUG_BUFFER.setSize(1, window.getWidth());
-    DEBUG_BUFFER.clear();
-
 
     // talk to audio thread
     audioProcessor.setNumPixels(window.getWidth());
@@ -43,6 +43,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     getLookAndFeel().setColour(juce::ToggleButton::ColourIds::tickColourId, juce::Colours::lightgrey);
     getLookAndFeel().setColour(juce::ToggleButton::ColourIds::tickDisabledColourId, juce::Colours::lightgrey);
     getLookAndFeel().setColour(juce::Label::ColourIds::textColourId, juce::Colours::lightgrey);
+    getLookAndFeel().setColour(juce::Slider::ColourIds::textBoxTextColourId, juce::Colours::lightgrey);
 
     //==========================================================================================//
 
@@ -67,7 +68,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     filterKnob.setTextValueSuffix(" ms");
     filterKnob.onValueChange = [this] {audioProcessor.setUpdate();};
     filterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.getParameters(),"FILTER",filterKnob);
-    filterLabel.setText("Filter Length (ms)", juce::dontSendNotification);
+    filterLabel.setText("Filter Length", juce::dontSendNotification);
     filterLabel.setJustificationType(juce::Justification::horizontallyCentred);
     filterLabel.attachToComponent(&filterKnob, true);
     addAndMakeVisible(filterKnob);
@@ -85,9 +86,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
         gainLabels[ch] = std::make_unique<juce::Label>();
         juce::String label;
         if(ch == 0)
-            gainLabels[ch]->setText("Channel 1 (reference) Gain", juce::dontSendNotification);
+            gainLabels[ch]->setText("Input Channel (L/1) Gain", juce::dontSendNotification);
         if(ch == 1)
-            gainLabels[ch]->setText("Channel 2 (divisor) Gain", juce::dontSendNotification);
+            gainLabels[ch]->setText("Output Channel (R/2) Gain", juce::dontSendNotification);
         gainLabels[ch]->setJustificationType(juce::Justification::horizontallyCentred);
         gainLabels[ch]->attachToComponent(gainKnobs[ch].get(), true);
         addAndMakeVisible(gainKnobs[ch].get());
@@ -179,7 +180,6 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     filterKnob.setVisible(compMode && smoothingMode);
     filterKnob.setEnabled(compMode && !freezeMode && smoothingMode);
 
-
     //==========================================================================================//
 
     /* set positions */
@@ -211,6 +211,10 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour(juce::Colours::lightgrey);
 
     plot(g);
+
+//    float xPos = 50;
+//    float yPos = getHeight()-110;
+//    g.drawImageAt(logo, xPos, yPos);
 }
 
 void NewProjectAudioProcessorEditor::resized()
@@ -238,7 +242,7 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     txt = "Zoom = ";
     txt += juce::String(100*1/audioProcessor.getRatio(),1);
     txt += "%";
-    g.drawText(juce::String(txt), x_right-100, y_top + 50, f.getStringWidth(txt), fh, juce::Justification::left);
+    g.drawText(juce::String(txt), x_right-130, y_top + 50, f.getStringWidth(txt), fh, juce::Justification::left);
 
     // draw x axis
     float numXTicks = 5;
@@ -318,8 +322,6 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
         g.drawText(txt, x_left - 125, y_bottom + h/2 - fh/2, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
         g.drawText("(dBFS)", x_left - 125, y_bottom + h/2 + fh*2/3, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
 
-
-
         // draw data
         g.setColour(palette[2]);
         auto comp = windowBuffer.getReadPointer(2);
@@ -334,7 +336,7 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
             float x2 = i + 1 + x_left;
             float y2 = juce::jlimit(y_bottom, y_top, y_bottom + val2);
 
-            if(comp[i] >= 0 && comp[i + 1] >= 0)
+            if(comp[i] > 0 && comp[i + 1] > 0)
             {
                 g.drawLine (x1,y1,x2,y2);
             }
