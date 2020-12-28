@@ -121,20 +121,16 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
         // show the appropriate slider
         auto compMode = compressionButton.getToggleStateValue().getValue();
         auto freezeMode = freezeButton.getToggleStateValue().getValue();
+        auto smoothingMode = smoothingButton.getToggleStateValue().getValue();
+
         gainKnobs[0]->setVisible(!compMode);
         gainKnobs[1]->setVisible(!compMode);
         yMinKnob.setVisible(compMode);
         yMaxKnob.setVisible(compMode);
-        filterKnob.setVisible(compMode && !freezeMode);
+        smoothingButton.setVisible(compMode);
+        filterKnob.setVisible(compMode && smoothingMode);
+        filterKnob.setEnabled(compMode && !freezeMode && smoothingMode);
     };
-    auto compMode = compressionButton.getToggleStateValue().getValue();
-    auto freezeMode = freezeButton.getToggleStateValue().getValue();
-    gainKnobs[0]->setVisible(!compMode);
-    gainKnobs[1]->setVisible(!compMode);
-    yMinKnob.setVisible(compMode);
-    yMaxKnob.setVisible(compMode);
-    filterKnob.setVisible(compMode && !freezeMode);
-
     compressionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"COMPMODE",compressionButton);
     compressionLabel.setText("Compression Mode", juce::dontSendNotification);
     compressionLabel.setJustificationType(juce::Justification::horizontallyCentred);
@@ -145,8 +141,9 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     freezeButton.onStateChange = [this] {
         auto compMode = compressionButton.getToggleStateValue().getValue();
         auto freezeMode = freezeButton.getToggleStateValue().getValue();
-        timeKnob.setVisible(!freezeMode);
-        filterKnob.setVisible(compMode && !freezeMode);
+        auto smoothingMode = smoothingButton.getToggleStateValue().getValue();
+        timeKnob.setEnabled(!freezeMode);
+        filterKnob.setEnabled(compMode && !freezeMode && smoothingMode);
     };
     freezeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"FREEZE",freezeButton);
     freezeLabel.setText("Freeze", juce::dontSendNotification);
@@ -154,20 +151,50 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     freezeLabel.attachToComponent(&freezeButton, true);
     addAndMakeVisible(freezeButton);
 
+    // smoothing checkbox
+    smoothingButton.onStateChange = [this] {
+        auto compMode = compressionButton.getToggleStateValue().getValue();
+        auto freezeMode = freezeButton.getToggleStateValue().getValue();
+        auto smoothingMode = smoothingButton.getToggleStateValue().getValue();
+        filterKnob.setVisible(compMode && smoothingMode);
+        filterKnob.setEnabled(compMode && !freezeMode && smoothingMode);
+        audioProcessor.setUpdate();
+    };
+    smoothingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(),"SMOOTHING",smoothingButton);
+    smoothingLabel.setText("Smoothing", juce::dontSendNotification);
+    smoothingLabel.setJustificationType(juce::Justification::horizontallyCentred);
+    smoothingLabel.attachToComponent(&smoothingButton, true);
+    addAndMakeVisible(smoothingButton);
+
+    // set visibility and enabled
+    auto compMode = compressionButton.getToggleStateValue().getValue();
+    auto freezeMode = freezeButton.getToggleStateValue().getValue();
+    auto smoothingMode = smoothingButton.getToggleStateValue().getValue();
+    timeKnob.setEnabled(!freezeMode);
+    gainKnobs[0]->setVisible(!compMode);
+    gainKnobs[1]->setVisible(!compMode);
+    yMinKnob.setVisible(compMode);
+    yMaxKnob.setVisible(compMode);
+    smoothingButton.setVisible(compMode);
+    filterKnob.setVisible(compMode && smoothingMode);
+    filterKnob.setEnabled(compMode && !freezeMode && smoothingMode);
+
+
     //==========================================================================================//
 
     /* set positions */
     int spacing = 60;
     int gap = spacing*3/4;
 
-    timeKnob.setBounds(          getWidth()/3,   getHeight()-spacing*4-gap, 400, 50 );
-    filterKnob.setBounds(        getWidth()/3,   getHeight()-spacing*1-gap, 400, 50 );
-    gainKnobs[0]->setBounds(     getWidth()/3,   getHeight()-spacing*3-gap, 400, 50 );
-    gainKnobs[1]->setBounds(     getWidth()/3,   getHeight()-spacing*2-gap, 400, 50 );
-    yMaxKnob.setBounds(          getWidth()/3,   getHeight()-spacing*3-gap, 400, 50 );
-    yMinKnob.setBounds(          getWidth()/3,   getHeight()-spacing*2-gap, 400, 50 );
-    compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2-gap, 25,  25 );
-    freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3-gap, 25,  25 );
+    timeKnob.setBounds(          getWidth()/3  , getHeight()-spacing*4-gap, 400, 50);
+    filterKnob.setBounds(        getWidth()/3  , getHeight()-spacing*1-gap, 400, 50);
+    gainKnobs[0]->setBounds(     getWidth()/3  , getHeight()-spacing*3-gap, 400, 50);
+    gainKnobs[1]->setBounds(     getWidth()/3  , getHeight()-spacing*2-gap, 400, 50);
+    yMaxKnob.setBounds(          getWidth()/3  , getHeight()-spacing*3-gap, 400, 50);
+    yMinKnob.setBounds(          getWidth()/3  , getHeight()-spacing*2-gap, 400, 50);
+    compressionButton.setBounds( getWidth()-100, getHeight()-spacing*2-gap, 25 , 25);
+    freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3-gap, 25 , 25);
+    smoothingButton.setBounds(   getWidth()-100, getHeight()-spacing*1-gap, 25 , 25);
 
     audioProcessor.setReady(true);
 }

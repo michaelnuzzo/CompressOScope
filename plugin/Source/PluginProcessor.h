@@ -76,7 +76,8 @@ private:
     juce::AudioBuffer<float> interBuffer;
     juce::AudioBuffer<float> copyBuffer;
     MedianFilter medianFilter;
-    double samplesPerPixel; // num samples per pixel
+    bool smoothing;
+    double samplesPerPixel;
     int numPixels;
     int state;
     bool ready;

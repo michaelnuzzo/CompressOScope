@@ -165,15 +165,15 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         {
             float compVal = abs(in2[i]/in1[i]);
             // TODO: add checkbox for median filter
-//            if(filter)
-//            {
+            if(smoothing)
+            {
                 medianFilter.push(compVal);
                 out[i] = medianFilter.getMedian();
-//            }
-//            else
-//            {
-//                out[i] = compVal;
-//            }
+            }
+            else
+            {
+                out[i] = compVal;
+            }
         }
 
         audioCollector.push(copyBlock);
@@ -247,8 +247,16 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
 void NewProjectAudioProcessor::updateParameters()
 {
-    medianFilter.setOrder(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f);
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
+    smoothing = *parameters.getRawParameterValue("SMOOTHING");
+    if(smoothing)
+    {
+        medianFilter.setOrder(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f);
+    }
+    else
+    {
+        medianFilter.setOrder(1);
+    }
 
     // one sample per pixel
     if(samplesPerPixel == 1)
@@ -383,14 +391,16 @@ void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> in
 juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"    , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"  , "Filter"   , juce::NormalisableRange<float>(1.f    , 100.f, 0.01f         ), 1.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"   , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"   , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"    , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"    , "Y min"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), -60.f));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE", "Comp Mode", false                                                                ));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"  , "Freeze"   , false                                                                ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"     , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"   , "Filter"   , juce::NormalisableRange<float>(1.f    , 100.f, 0.01f         ), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"    , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"    , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"     , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), -60.f));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE" , "Comp Mode", false                                                                ));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"   , "Freeze"   , false                                                                ));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", true                                                                 ));
+
     return { params.begin(), params.end() };
 }
 
