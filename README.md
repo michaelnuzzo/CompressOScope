@@ -1,14 +1,12 @@
 <div  align="center">
 
-# CompressOScope
-
 <img width="400px" src="docs/imgs/logo.png">
 
 </div>
 
 ## Overview
 
-The CompressOScope is an audio app and plugin which allows you to calculate and visualize a compressor's gain in real time. 
+The CompressOScope is an audio app and plugin which allows you to calculate and visualize a [dynamic range compressor](https://en.wikipedia.org/wiki/Dynamic_range_compression)'s gain in real time. To use the CompressOScope, set up a stereo recording track and route the input of the compressor you want to measure on to channel 1 (L) and the output to channel 2 (R). If there is an offset or delay between the input and output, make sure to correct for this as the CompressOScope works best with aligned input/output signals.
 
 <div  align="center">
 
@@ -27,7 +25,6 @@ VST3:
 Macintosh HD/Library/Audio/Plug-Ins/VST3
 AU (Component):
 Macintosh HD/Library/Audio/Plug-Ins/Components
-
 ```
 The .app can be run as a standalone without a DAW or further installation.
 
