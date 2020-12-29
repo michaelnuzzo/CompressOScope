@@ -3,7 +3,7 @@
 <JUCERPROJECT id="pnZU1X" name="CompressOScope" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1"
               companyName="Michael Nuzzo" companyWebsite="https://github.com/michaelnuzzo"
-              companyEmail="Michael_Nuzzo@student.uml.edu">
+              companyEmail="Michael_Nuzzo@student.uml.edu" version="1.0.0">
   <MAINGROUP id="KbAKKg" name="CompressOScope">
     <GROUP id="{B5482F00-475E-E2F6-AC85-071AE2BD53C0}" name="Source">
       <FILE id="LRvrkx" name="MedianFilter.cpp" compile="1" resource="0"
