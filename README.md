@@ -1,7 +1,5 @@
 <div  align="center">
 
-# CompressOScope
-
 <img width="400px" src="docs/imgs/logo.png">
 
 </div>
