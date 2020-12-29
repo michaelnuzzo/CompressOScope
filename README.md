@@ -25,7 +25,6 @@ VST3:
 Macintosh HD/Library/Audio/Plug-Ins/VST3
 AU (Component):
 Macintosh HD/Library/Audio/Plug-Ins/Components
-
 ```
 The .app can be run as a standalone without a DAW or further installation.
 
