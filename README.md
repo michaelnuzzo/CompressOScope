@@ -2,7 +2,7 @@
 
 # CompressOScope
 
-<img width="400px" src="docs/imgs/screenshot.png">
+<img width="400px" src="docs/imgs/logo.png">
 
 </div>
 
