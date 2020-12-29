@@ -164,7 +164,6 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         for(int i = 0; i < buffer.getNumSamples(); i++)
         {
             float compVal = abs(in2[i]/in1[i]);
-            // TODO: add checkbox for median filter
             if(smoothing)
             {
                 medianFilter.push(compVal);
@@ -392,7 +391,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::cr
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"     , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"   , "Filter"   , juce::NormalisableRange<float>(1.f    , 100.f, 0.01f         ), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"   , "Filter"   , juce::NormalisableRange<float>(1.f    , 10.f , 0.01f         ), 1.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"    , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"    , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"     , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
