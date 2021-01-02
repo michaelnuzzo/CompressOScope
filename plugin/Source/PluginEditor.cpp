@@ -10,7 +10,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioProcessor& p)
+CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (CompressOScopeAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     //==========================================================================================//
@@ -73,7 +73,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     filterLabel.attachToComponent(&filterKnob, true);
     addAndMakeVisible(filterKnob);
 
-    for(int ch = 0; ch < audioProcessor.getTotalNumInputChannels(); ch++)
+    for(size_t ch = 0; ch < size_t(audioProcessor.getTotalNumInputChannels()); ch++)
     {
         // channel gain sliders
         gainKnobs[ch] = std::make_unique<juce::Slider>();
@@ -199,12 +199,12 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     audioProcessor.setReady(true);
 }
 
-NewProjectAudioProcessorEditor::~NewProjectAudioProcessorEditor()
+CompressOScopeAudioProcessorEditor::~CompressOScopeAudioProcessorEditor()
 {
 }
 
 //==============================================================================
-void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
+void CompressOScopeAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.setFont(f);
     g.fillAll (juce::Colours::black);
@@ -217,25 +217,25 @@ void NewProjectAudioProcessorEditor::paint (juce::Graphics& g)
 //    g.drawImageAt(logo, xPos, yPos);
 }
 
-void NewProjectAudioProcessorEditor::resized()
+void CompressOScopeAudioProcessorEditor::resized()
 {
 }
 
-void NewProjectAudioProcessorEditor::timerCallback()
+void CompressOScopeAudioProcessorEditor::timerCallback()
 {
     repaint();
 }
 
-void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
+void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 {
 
     float w        = window.getWidth();
     float h        = window.getHeight();
-    float x_left   = window.getX();
-    float x_right  = window.getRight();
-    float y_bottom = window.getY();
-    float y_top    = y_bottom + h;
-    int   fh       = f.getHeight();
+    int x_left   = window.getX();
+    int x_right  = window.getRight();
+    int y_bottom = window.getY();
+    int y_top    = y_bottom + int(h);
+    int   fh       = int(f.getHeight());
     auto compMode = compressionButton.getToggleStateValue().getValue();
     juce::String txt;
 
@@ -249,13 +249,13 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     for(float i = 0; i < numXTicks; i++)
     {
         float scale = i/(numXTicks-1);
-        int xPos = x_right - scale * (w-1);
-        g.drawLine(xPos - 0.5, y_top, xPos - 0.5, y_top+10);
+        int xPos = x_right - int(scale * (w-1));
+        g.drawLine(xPos - 0.5f, y_top, xPos - 0.5f, y_top+10);
         txt = juce::String(scale * timeKnob.getValue(), 4);
         g.drawText(txt, xPos - 17, y_top + 15, f.getStringWidth("0.0000"), fh, juce::Justification::horizontallyCentred);
     }
     txt = "Time (s)";
-    g.drawText(txt, x_left + w/2 - 25, y_top + 40, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
+    g.drawText(txt, x_left + int(w/2.f) - 25, y_top + 40, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
 
     // read data
     if(audioProcessor.displayCollector.getNumUnread() >= windowBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue())
@@ -271,28 +271,28 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
         float numYTicks = 5;
         for(float i = 0; i < numYTicks; i++)
         {
-            int yPos = y_bottom + i*(h-1)/(numYTicks-1);
-            g.drawLine(x_left-10, yPos + 0.5, x_left, yPos + 0.5);
+            int yPos = y_bottom + int(i*(h-1)/(numYTicks-1));
+            g.drawLine(x_left-10, yPos + 0.5f, x_left, yPos + 0.5f);
             txt = juce::String(1 - i * 0.5);
-            g.drawText(txt, x_left - 35, yPos - fh/2, f.getStringWidth("-0.5"), fh, juce::Justification::right);
+            g.drawText(txt, x_left - 35, yPos - int(fh/2.f), f.getStringWidth("-0.5"), fh, juce::Justification::right);
         }
         txt = "Magnitude";
-        g.drawText(txt, x_left - 100, y_bottom + h/2 - fh/2, f.getStringWidth(txt), fh, juce::Justification::right);
+        g.drawText(txt, x_left - 100, y_bottom + int(h/2.f - fh/2.f), f.getStringWidth(txt), fh, juce::Justification::right);
 
 
         // draw data
-        for(int ch = 0; ch < audioProcessor.getTotalNumInputChannels(); ch++)
+        for(size_t ch = 0; ch < size_t(audioProcessor.getTotalNumInputChannels()); ch++)
         {
             g.setColour(palette[ch]);
-            auto data = windowBuffer.getReadPointer(ch);
+            auto data = windowBuffer.getReadPointer(int(ch));
             auto gain = juce::Decibels::decibelsToGain(gainKnobs[ch]->getValue());
 
             for (int i = 1; i < w-1; i++)
             {
                 float x1 = i + x_left;
-                float y1 = juce::jlimit(y_bottom, y_top, y_bottom + float(h/2.f - h * data[i]     * gain));
+                float y1 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i]     * gain));
                 float x2 = i + 1 + x_left;
-                float y2 = juce::jlimit(y_bottom, y_top, y_bottom + float(h/2.f - h * data[i + 1] * gain));
+                float y2 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i + 1] * gain));
 
                 g.drawLine (x1,y1,x2,y2);
             }
@@ -301,26 +301,26 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
     else
     {
         /* compression mode */
-        float yMin = yMinKnob.getValue();
-        float yMax = yMaxKnob.getValue();
+        float yMin = float(yMinKnob.getValue());
+        float yMax = float(yMaxKnob.getValue());
         if(yMin == yMax)
         {
-            yMax += 0.0001;
+            yMax += 0.0001f;
         }
 
         // draw y-axis
         float numYTicks = 10;
         for(float i = 0; i < numYTicks; i++)
         {
-            int yPos = y_bottom + i*(h-1)/(numYTicks-1);
-            g.drawLine(x_left-10, yPos + 0.5, x_left, yPos + 0.5);
+            int yPos = y_bottom + int(i*(h-1)/(numYTicks-1));
+            g.drawLine(x_left-10, yPos + 0.5f, x_left, yPos + 0.5f);
             float curTick = (numYTicks-1-i) * yMax / (numYTicks - 1) + i * yMin / (numYTicks - 1);
             txt = juce::String(curTick, 3);
             g.drawText(txt, x_left - 55, yPos - fh/2, f.getStringWidth("-00.000"), fh, juce::Justification::right);
         }
         txt = "Amplitude";
-        g.drawText(txt, x_left - 125, y_bottom + h/2 - fh/2, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
-        g.drawText("(dBFS)", x_left - 125, y_bottom + h/2 + fh*2/3, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
+        g.drawText(txt, x_left - 125, y_bottom + int(h/2.f) - int(fh/2.f), f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
+        g.drawText("(dBFS)", x_left - 125, y_bottom + int(h/2.f) + int(fh*2.f/3.f), f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
 
         // draw data
         g.setColour(palette[2]);
@@ -332,9 +332,9 @@ void NewProjectAudioProcessorEditor::plot(juce::Graphics& g)
             float val2 = juce::jmap(juce::Decibels::gainToDecibels(comp[i + 1]), yMax, yMin, 0.f, h);
 
             float x1 = i + x_left;
-            float y1 = juce::jlimit(y_bottom, y_top, y_bottom + val1);
+            float y1 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val1));
             float x2 = i + 1 + x_left;
-            float y2 = juce::jlimit(y_bottom, y_top, y_bottom + val2);
+            float y2 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val2));
 
             if(comp[i] > 0 && comp[i + 1] > 0)
             {

@@ -18,9 +18,9 @@ public:
     ASyncBuffer(int numChannels, int size);
     ~ASyncBuffer();
 
-    void push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite = -1, int numToMark = -1, int ID = -1);
-    void pop(juce::dsp::AudioBlock<float> outBuffer, int numToRead = -1, int numToMark = -1, int ID = -1);
-    void readHead(juce::dsp::AudioBlock<float> outBuffer, int numToRead = -1, int ID = -1);
+    void push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite = -1, int numToMark = -1);
+    void pop(juce::dsp::AudioBlock<float> outBuffer, int numToRead = -1, int numToMark = -1);
+    void readHead(juce::dsp::AudioBlock<float> outBuffer, int numToRead = -1);
     void trim(int numToTrim);
     void reset();
     void resize(int newSize);

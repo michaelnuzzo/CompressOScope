@@ -64,15 +64,15 @@ void MedianFilter::push(float val)
         }
         else
         {
-            // search through until we find a node higher than or equal to our new node
+            // do a quick check to see if we are higher than the highest or the medians
             llNode* cur = nullptr;// = lowest;
-            if(newNode->data >= highest->data)
+            if(newNode->data > highest->data)
             {
                 cur = highest;
             }
             else if(lowMedian != nullptr)
             {
-                if(newNode->data >= lowMedian->data)
+                if(newNode->data > lowMedian->data)
                 {
                     cur = lowMedian;
                 }
@@ -83,7 +83,7 @@ void MedianFilter::push(float val)
             }
             else if(median != nullptr)
             {
-                if(newNode->data >= median->data)
+                if(newNode->data > median->data)
                 {
                     cur = median;
                 }
@@ -92,6 +92,7 @@ void MedianFilter::push(float val)
                     cur = lowest;
                 }
             }
+            // search through until we find a node higher than or equal to our new node
             while(cur->next != nullptr && newNode->data > cur->data)
             {
                 cur = cur->next;

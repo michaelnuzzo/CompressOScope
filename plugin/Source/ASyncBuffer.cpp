@@ -19,7 +19,7 @@ ASyncBuffer::~ASyncBuffer()
 {
 }
 
-void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite, int numToMark, int ID)
+void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite, int numToMark)
 {
     if(numToWrite < 0)
     {
@@ -43,21 +43,21 @@ void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWri
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start1, size1);
-        auto bufferChunk = inBuffer.getSubBlock(0, size1);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto bufferChunk = inBuffer.getSubBlock(0, size_t(size1));
         circularChunk.copyFrom(bufferChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start2, size2);
-        auto bufferChunk = inBuffer.getSubBlock(size1, size2);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto bufferChunk = inBuffer.getSubBlock(size_t(size1), size_t(size2));
         circularChunk.copyFrom(bufferChunk);
     }
 
     abstractFifo.finishedWrite(numToMark);
 }
 
-void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRead, int numToMark, int ID)
+void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRead, int numToMark)
 {
     if(numToRead < 0)
     {
@@ -74,21 +74,21 @@ void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRea
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start1, size1);
-        auto bufferChunk = outBuffer.getSubBlock(0, size1);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto bufferChunk = outBuffer.getSubBlock(0, size_t(size1));
         bufferChunk.copyFrom(circularChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start2, size2);
-        auto bufferChunk = outBuffer.getSubBlock(size1, size2);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto bufferChunk = outBuffer.getSubBlock(size_t(size1), size_t(size2));
         bufferChunk.copyFrom(circularChunk);
     }
 
     abstractFifo.finishedRead(numToMark);
 }
 
-void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int numToRead, int ID)
+void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int numToRead)
 {
     if(numToRead < 0)
     {
@@ -122,14 +122,14 @@ void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int num
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start1, size1);
-        auto bufferChunk = outBuffer.getSubBlock(0, size1);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto bufferChunk = outBuffer.getSubBlock(0, size_t(size1));
         bufferChunk.copyFrom(circularChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(start2, size2);
-        auto bufferChunk = outBuffer.getSubBlock(size1, size2);
+        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto bufferChunk = outBuffer.getSubBlock(size_t(size1), size_t(size2));
         bufferChunk.copyFrom(circularChunk);
     }
 }
@@ -148,13 +148,11 @@ void ASyncBuffer::reset()
 void ASyncBuffer::resize(int newSize)
 {
     abstractFifo.setTotalSize(newSize);
-//    circularBuffer.setSize(circularBuffer.getNumChannels(), newSize, true, true);
     circularBuffer.setSize(circularBuffer.getNumChannels(), newSize);
 }
 
 void ASyncBuffer::resize(int numChannels, int newSize)
 {
     abstractFifo.setTotalSize(newSize);
-//    circularBuffer.setSize(numChannels, newSize, true, true);
     circularBuffer.setSize(numChannels, newSize);
 }

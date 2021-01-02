@@ -24,8 +24,8 @@ public:
     void push(float val);
     void pop();
     float getMedian();
-    inline bool hasEvenLength() {return numValidNodes % 2 == 0;};
-    inline bool isReady() {return numValidNodes > 0;};
+    inline bool hasEvenLength() {return numValidNodes % 2 == 0;}
+    inline bool isReady() {return numValidNodes > 0 && (median != nullptr || (lowMedian != nullptr && highMedian != nullptr));}
 
 private:
     struct llNode

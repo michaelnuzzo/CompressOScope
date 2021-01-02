@@ -10,7 +10,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-NewProjectAudioProcessor::NewProjectAudioProcessor()
+CompressOScopeAudioProcessor::CompressOScopeAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -27,19 +27,20 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
     displayCollector.setIsOverwritable(true);
     audioCollector.setIsOverwritable(true);
     parameters.state = juce::ValueTree("Parameters");
+//    juce::SystemStats::setApplicationCrashHandler ([](void*) { juce::SystemStats::getStackBacktrace();});
 }
 
-NewProjectAudioProcessor::~NewProjectAudioProcessor()
+CompressOScopeAudioProcessor::~CompressOScopeAudioProcessor()
 {
 }
 
 //==============================================================================
-const juce::String NewProjectAudioProcessor::getName() const
+const juce::String CompressOScopeAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool NewProjectAudioProcessor::acceptsMidi() const
+bool CompressOScopeAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -48,7 +49,7 @@ bool NewProjectAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool NewProjectAudioProcessor::producesMidi() const
+bool CompressOScopeAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -57,7 +58,7 @@ bool NewProjectAudioProcessor::producesMidi() const
    #endif
 }
 
-bool NewProjectAudioProcessor::isMidiEffect() const
+bool CompressOScopeAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -66,53 +67,53 @@ bool NewProjectAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double NewProjectAudioProcessor::getTailLengthSeconds() const
+double CompressOScopeAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int NewProjectAudioProcessor::getNumPrograms()
+int CompressOScopeAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int NewProjectAudioProcessor::getCurrentProgram()
+int CompressOScopeAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void NewProjectAudioProcessor::setCurrentProgram (int index)
+void CompressOScopeAudioProcessor::setCurrentProgram (int index)
 {
 }
 
-const juce::String NewProjectAudioProcessor::getProgramName (int index)
+const juce::String CompressOScopeAudioProcessor::getProgramName (int index)
 {
     return {};
 }
 
-void NewProjectAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void CompressOScopeAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
 }
 
 //==============================================================================
-void NewProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void CompressOScopeAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     displayCollector.reset();
 
-    audioCollector.resize(getTotalNumInputChannels() + 1,sampleRate*5);
+    audioCollector.resize(getTotalNumInputChannels() + 1,int(sampleRate)*5);
 
     copyBuffer.setSize(getTotalNumInputChannels() + 1, samplesPerBlock);
 
     setUpdate();
 }
 
-void NewProjectAudioProcessor::releaseResources()
+void CompressOScopeAudioProcessor::releaseResources()
 {
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool NewProjectAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool CompressOScopeAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -120,8 +121,8 @@ bool NewProjectAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
   #else
     // This is the place where you check if the layout is supported.
     // In this template code we only support mono or stereo.
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+
         return false;
 
     // This checks if the input layout matches the output layout
@@ -135,7 +136,7 @@ bool NewProjectAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
-void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     if(ready)
     {
@@ -152,8 +153,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         }
 
         auto rawBuffer = juce::dsp::AudioBlock<float>(buffer);
-        auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, buffer.getNumSamples());
-        auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, getTotalNumInputChannels());
+        auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, size_t(buffer.getNumSamples()));
+        auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
         auto compCopyBlock  = copyBlock.getSubsetChannelBlock(2, 1);
 
         audioCopyBlock.copyFrom(rawBuffer);
@@ -190,8 +191,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
             {
                 audioCollector.pop(audioBlock,numToRead,numToRead);
-                audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
-                interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+                interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
                 interAudioBlock.copyFrom(audioSubBlock);
                 numToWrite = 1;
             }
@@ -199,8 +200,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             {
                 numToRead *= 2;
                 audioCollector.pop(audioBlock,numToRead,numToRead);
-                audioSubBlock = audioSubBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(0, getTotalNumInputChannels());
-                interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                audioSubBlock = audioSubBlock.getSubBlock(0, size_t(numToRead)).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+                interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
                 getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
                 numToWrite = 2;
             }
@@ -209,8 +210,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
                 numToRead = 2;
                 audioCollector.pop(audioBlock,numToRead,numToRead - 1);
                 numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-                audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, getTotalNumInputChannels()); // .getSubBlock(0, numToRead);
-                interAudioBlock = interAudioBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(0, getTotalNumInputChannels());
+                audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, size_t(getTotalNumInputChannels())); // .getSubBlock(0, numToRead);
+                interAudioBlock = interAudioBlock.getSubBlock(0, size_t(numToWrite)).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
                 interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
             }
             else
@@ -219,8 +220,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             }
 
             // save compression data
-            auto audioCompBlock = audioBlock.getSubBlock(0, numToRead).getSubsetChannelBlock(2, 1);
-            auto interCompBlock = interBlock.getSubBlock(0, numToWrite).getSubsetChannelBlock(2, 1);
+            auto audioCompBlock = audioBlock.getSubBlock(0, size_t(numToRead)).getSubsetChannelBlock(2, 1);
+            auto interCompBlock = interBlock.getSubBlock(0, size_t(numToWrite)).getSubsetChannelBlock(2, 1);
             if(state == 3)
             {
                 interpolate(audioCompBlock, interCompBlock, numToWrite, 1);
@@ -244,13 +245,13 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     }
 }
 
-void NewProjectAudioProcessor::updateParameters()
+void CompressOScopeAudioProcessor::updateParameters()
 {
     samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
-    smoothing = *parameters.getRawParameterValue("SMOOTHING");
+    smoothing = bool(*parameters.getRawParameterValue("SMOOTHING"));
     if(smoothing)
     {
-        medianFilter.setOrder(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f);
+        medianFilter.setOrder(int(getSampleRate() * *parameters.getRawParameterValue("FILTER")/1000.f));
     }
     else
     {
@@ -301,14 +302,14 @@ void NewProjectAudioProcessor::updateParameters()
     requiresUpdate = false;
 }
 
-void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock)
+void CompressOScopeAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock)
 {
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
     jassert(inBlock.getNumSamples() > 1 && outBlock.getNumSamples() == 2);
 
     int n = int(inBlock.getNumSamples());
 
-    for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
+    for(size_t ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
         auto pi = inBlock.getChannelPointer(ch);
         auto po = outBlock.getChannelPointer(ch);
@@ -360,19 +361,19 @@ void NewProjectAudioProcessor::getMinAndMaxOrdered(const juce::dsp::AudioBlock<f
     }
 }
 
-void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type)
+void CompressOScopeAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type)
 {
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
 //    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 1);
 
     auto n = outBlock.getNumSamples();
 
-    for(int ch = 0; ch < inBlock.getNumChannels(); ch++)
+    for(size_t ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
         auto pi = inBlock.getChannelPointer(ch);
         auto po = outBlock.getChannelPointer(ch);
 
-        for(int i = 0; i < n; i++)
+        for(size_t i = 0; i < n; i++)
         {
             if(type == 0) // nearest neighbor
             {
@@ -387,7 +388,7 @@ void NewProjectAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> in
 }
 
 
-juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::createParameters()
+juce::AudioProcessorValueTreeState::ParameterLayout CompressOScopeAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"     , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
@@ -398,30 +399,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout NewProjectAudioProcessor::cr
     params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), -60.f));
     params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE" , "Comp Mode", false                                                                ));
     params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"   , "Freeze"   , false                                                                ));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", true                                                                 ));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", false                                                                ));
 
     return { params.begin(), params.end() };
 }
 
 //==============================================================================
-bool NewProjectAudioProcessor::hasEditor() const
+bool CompressOScopeAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* NewProjectAudioProcessor::createEditor()
+juce::AudioProcessorEditor* CompressOScopeAudioProcessor::createEditor()
 {
-    return new NewProjectAudioProcessorEditor (*this);
+    return new CompressOScopeAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-void NewProjectAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void CompressOScopeAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     std::unique_ptr<juce::XmlElement> xml(parameters.state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void CompressOScopeAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -439,5 +440,5 @@ void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeIn
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new NewProjectAudioProcessor();
+    return new CompressOScopeAudioProcessor();
 }

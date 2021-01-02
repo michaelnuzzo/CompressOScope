@@ -14,11 +14,11 @@
 //==============================================================================
 /**
 */
-class NewProjectAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer
+class CompressOScopeAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::Timer
 {
 public:
-    NewProjectAudioProcessorEditor (NewProjectAudioProcessor&);
-    ~NewProjectAudioProcessorEditor() override;
+    CompressOScopeAudioProcessorEditor (CompressOScopeAudioProcessor&);
+    ~CompressOScopeAudioProcessorEditor() override;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
@@ -28,7 +28,7 @@ public:
 
 private:
     void timerCallback() override;
-    NewProjectAudioProcessor& audioProcessor;
+    CompressOScopeAudioProcessor& audioProcessor;
     juce::AudioBuffer<float> windowBuffer;
     juce::Rectangle<int> window;
     /* parameters */
@@ -44,5 +44,5 @@ private:
     juce::Font f;
 //    juce::Image logo;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressOScopeAudioProcessorEditor)
 };

@@ -15,12 +15,12 @@
 //==============================================================================
 /**
 */
-class NewProjectAudioProcessor  : public juce::AudioProcessor
+class CompressOScopeAudioProcessor  : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    NewProjectAudioProcessor();
-    ~NewProjectAudioProcessor() override;
+    CompressOScopeAudioProcessor();
+    ~CompressOScopeAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -58,7 +58,7 @@ public:
     inline void setUpdate() {requiresUpdate = true;}
     inline void setNumPixels(int num) {numPixels = num;}
     inline double getRatio() {return samplesPerPixel;}
-    inline int getState() {return state;};
+    inline int getState() {return state;}
     void updateParameters();
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
@@ -86,5 +86,5 @@ private:
     juce::AudioProcessorValueTreeState parameters;
 
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressOScopeAudioProcessor)
 };
