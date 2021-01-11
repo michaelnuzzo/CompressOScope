@@ -32,7 +32,7 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
     window.setTop(padding);
 
     // initialize display buffer
-    windowBuffer.setSize(audioProcessor.getTotalNumInputChannels() + 1, window.getWidth());
+    windowBuffer.setSize(3, window.getWidth());
     windowBuffer.clear();
 
     // talk to audio thread
@@ -229,13 +229,13 @@ void CompressOScopeAudioProcessorEditor::timerCallback()
 void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 {
 
-    float w        = window.getWidth();
-    float h        = window.getHeight();
+    float w      = window.getWidth();
+    float h      = window.getHeight();
     int x_left   = window.getX();
     int x_right  = window.getRight();
     int y_bottom = window.getY();
     int y_top    = y_bottom + int(h);
-    int   fh       = int(f.getHeight());
+    int   fh     = int(f.getHeight());
     auto compMode = compressionButton.getToggleStateValue().getValue();
     juce::String txt;
 
@@ -290,9 +290,9 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
             for (int i = 1; i < w-1; i++)
             {
                 float x1 = i + x_left;
-                float y1 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i]     * gain));
+                float y1 = -0.5f+int(juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i]     * gain)));
                 float x2 = i + 1 + x_left;
-                float y2 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i + 1] * gain));
+                float y2 = -0.5f+int(juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + h/2.f - h * data[i + 1] * gain)));
 
                 g.drawLine (x1,y1,x2,y2);
             }
@@ -319,7 +319,7 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
             g.drawText(txt, x_left - 55, yPos - fh/2, f.getStringWidth("-00.000"), fh, juce::Justification::right);
         }
         txt = "Amplitude";
-        g.drawText(txt, x_left - 125, y_bottom + int(h/2.f) - int(fh/2.f), f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
+        g.drawText(txt     , x_left - 125, y_bottom + int(h/2.f) - int(fh/2.f)    , f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
         g.drawText("(dBFS)", x_left - 125, y_bottom + int(h/2.f) + int(fh*2.f/3.f), f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
 
         // draw data
@@ -332,9 +332,9 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
             float val2 = juce::jmap(juce::Decibels::gainToDecibels(comp[i + 1]), yMax, yMin, 0.f, h);
 
             float x1 = i + x_left;
-            float y1 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val1));
+            float y1 = -0.5f+int(juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val1)));
             float x2 = i + 1 + x_left;
-            float y2 = juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val2));
+            float y2 = -0.5f+int(juce::jlimit(float(y_bottom), float(y_top), float(y_bottom + val2)));
 
             if(comp[i] > 0 && comp[i + 1] > 0)
             {

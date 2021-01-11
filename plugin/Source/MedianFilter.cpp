@@ -303,8 +303,15 @@ void MedianFilter::swapNodes(llNode* a, llNode* b)
             b->next->prev = a;
             a->next = b->next;
         }
-        a->prev->next = b;
-        b->prev = a->prev;
+        if(a->prev == nullptr)
+        {
+            b->prev = nullptr;
+        }
+        else
+        {
+            a->prev->next = b;
+            b->prev = a->prev;
+        }
         b->next = a;
         a->prev = b;
     }

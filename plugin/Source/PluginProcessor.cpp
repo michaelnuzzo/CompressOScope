@@ -154,7 +154,7 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
         auto rawBuffer = juce::dsp::AudioBlock<float>(buffer);
         auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, size_t(buffer.getNumSamples()));
-        auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+        auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, NUM_CH);
         auto compCopyBlock  = copyBlock.getSubsetChannelBlock(2, 1);
 
         audioCopyBlock.copyFrom(rawBuffer);
@@ -188,30 +188,33 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
             int numToWrite;
 
+            // samples/pixels is 1
             if(state == 1 || (state == 2 && numToRead == 1) || interBlock.getNumSamples() == 1)
             {
                 audioCollector.pop(audioBlock,numToRead,numToRead);
-                audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
-                interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+                audioSubBlock   = audioSubBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, NUM_CH);
+                interAudioBlock = interAudioBlock.getSubBlock(0, 1).getSubsetChannelBlock(0, NUM_CH);
                 interAudioBlock.copyFrom(audioSubBlock);
                 numToWrite = 1;
             }
+            // samples/pixels is >1
             else if(state == 2)
             {
                 numToRead *= 2;
                 audioCollector.pop(audioBlock,numToRead,numToRead);
-                audioSubBlock = audioSubBlock.getSubBlock(0, size_t(numToRead)).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
-                interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+                audioSubBlock = audioSubBlock.getSubBlock(0, size_t(numToRead)).getSubsetChannelBlock(0, NUM_CH);
+                interAudioBlock = interAudioBlock.getSubBlock(0, 2).getSubsetChannelBlock(0, NUM_CH);
                 getMinAndMaxOrdered(audioSubBlock, interAudioBlock);
                 numToWrite = 2;
             }
+            // samples/pixels is <1
             else if(state == 3)
             {
                 numToRead = 2;
                 audioCollector.pop(audioBlock,numToRead,numToRead - 1);
                 numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-                audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, size_t(getTotalNumInputChannels())); // .getSubBlock(0, numToRead);
-                interAudioBlock = interAudioBlock.getSubBlock(0, size_t(numToWrite)).getSubsetChannelBlock(0, size_t(getTotalNumInputChannels()));
+                audioSubBlock = audioSubBlock.getSubsetChannelBlock(0, NUM_CH); // .getSubBlock(0, numToRead);
+                interAudioBlock = interAudioBlock.getSubBlock(0, size_t(numToWrite)).getSubsetChannelBlock(0, NUM_CH);
                 interpolate(audioSubBlock, interAudioBlock, numToWrite, 1);
             }
             else

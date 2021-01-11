@@ -72,6 +72,7 @@ public:
 
 private:
     ASyncBuffer audioCollector;
+    size_t NUM_CH = 2; // we require 2 channels to run the compressoscope!
     juce::AudioBuffer<float> audioBuffer;
     juce::AudioBuffer<float> interBuffer;
     juce::AudioBuffer<float> copyBuffer;
