@@ -152,13 +152,13 @@ void ASyncBuffer::readHead(juce::dsp::AudioBlock<float> outBuffer, int numToRead
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start1), size_t(size1));
         auto bufferChunk = outBuffer.getSubBlock(0, size_t(size1));
         bufferChunk.copyFrom(circularChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start2), size_t(size2));
         auto bufferChunk = outBuffer.getSubBlock(size_t(size1), size_t(size2));
         bufferChunk.copyFrom(circularChunk);
     }
