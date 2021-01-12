@@ -19,15 +19,25 @@ ASyncBuffer::~ASyncBuffer()
 {
 }
 
-void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWrite, int numToMark)
+void ASyncBuffer::push(juce::dsp::AudioBlock<float> inBuffer, int numToWrite, int numToMark)
 {
     if(numToWrite < 0)
     {
-        numToWrite = (int)inBuffer.getNumSamples();
+        numToWrite = int(inBuffer.getNumSamples());
     }
     if(numToMark < 0)
     {
         numToMark = numToWrite;
+    }
+
+    auto circBuffer = juce::dsp::AudioBlock<float>(circularBuffer);
+    if(inBuffer.getNumChannels() > circBuffer.getNumChannels())
+    {
+        inBuffer = inBuffer.getSubsetChannelBlock(0, circBuffer.getNumChannels());
+    }
+    else if(inBuffer.getNumChannels() < circBuffer.getNumChannels())
+    {
+        circBuffer = circBuffer.getSubsetChannelBlock(0, inBuffer.getNumChannels());
     }
 
     if(canOverwrite && numToWrite > abstractFifo.getFreeSpace())
@@ -43,13 +53,13 @@ void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWri
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start1), size_t(size1));
         auto bufferChunk = inBuffer.getSubBlock(0, size_t(size1));
         circularChunk.copyFrom(bufferChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start2), size_t(size2));
         auto bufferChunk = inBuffer.getSubBlock(size_t(size1), size_t(size2));
         circularChunk.copyFrom(bufferChunk);
     }
@@ -57,7 +67,7 @@ void ASyncBuffer::push(const juce::dsp::AudioBlock<float> inBuffer, int numToWri
     abstractFifo.finishedWrite(numToMark);
 }
 
-void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRead, int numToMark)
+void ASyncBuffer::pop(juce::dsp::AudioBlock<float> outBuffer, int numToRead, int numToMark)
 {
     if(numToRead < 0)
     {
@@ -68,19 +78,29 @@ void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRea
         numToMark = numToRead;
     }
 
+    auto circBuffer = juce::dsp::AudioBlock<float>(circularBuffer);
+    if(outBuffer.getNumChannels() > circBuffer.getNumChannels())
+    {
+        outBuffer = outBuffer.getSubsetChannelBlock(0, circBuffer.getNumChannels());
+    }
+    else if(outBuffer.getNumChannels() < circBuffer.getNumChannels())
+    {
+        circBuffer = circBuffer.getSubsetChannelBlock(0, outBuffer.getNumChannels());
+    }
+
     int start1, size1, start2, size2;
     abstractFifo.prepareToRead(numToRead, start1, size1, start2, size2);
     jassert(numToRead == size1+size2);
 
     if(size1 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start1), size_t(size1));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start1), size_t(size1));
         auto bufferChunk = outBuffer.getSubBlock(0, size_t(size1));
         bufferChunk.copyFrom(circularChunk);
     }
     if(size2 > 0)
     {
-        auto circularChunk = juce::dsp::AudioBlock<float>(circularBuffer).getSubBlock(size_t(start2), size_t(size2));
+        auto circularChunk = circBuffer.getSubBlock(size_t(start2), size_t(size2));
         auto bufferChunk = outBuffer.getSubBlock(size_t(size1), size_t(size2));
         bufferChunk.copyFrom(circularChunk);
     }
@@ -88,11 +108,21 @@ void ASyncBuffer::pop(const juce::dsp::AudioBlock<float> outBuffer, int numToRea
     abstractFifo.finishedRead(numToMark);
 }
 
-void ASyncBuffer::readHead(const juce::dsp::AudioBlock<float> outBuffer, int numToRead)
+void ASyncBuffer::readHead(juce::dsp::AudioBlock<float> outBuffer, int numToRead)
 {
     if(numToRead < 0)
     {
         numToRead = (int)outBuffer.getNumSamples();
+    }
+
+    auto circBuffer = juce::dsp::AudioBlock<float>(circularBuffer);
+    if(outBuffer.getNumChannels() > circBuffer.getNumChannels())
+    {
+        outBuffer = outBuffer.getSubsetChannelBlock(0, circBuffer.getNumChannels());
+    }
+    else if(outBuffer.getNumChannels() < circBuffer.getNumChannels())
+    {
+        circBuffer = circBuffer.getSubsetChannelBlock(0, outBuffer.getNumChannels());
     }
 
     int start1, size1, start2, size2;
