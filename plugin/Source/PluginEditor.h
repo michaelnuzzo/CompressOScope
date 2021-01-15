@@ -29,7 +29,7 @@ public:
 private:
     void timerCallback() override;
     CompressOScopeAudioProcessor& audioProcessor;
-    juce::AudioBuffer<float> windowBuffer;
+    juce::AudioBuffer<float> displayBuffer;
     juce::Rectangle<int> window;
     /* parameters */
     juce::Label timeLabel, filterLabel, compressionLabel, freezeLabel, smoothingLabel, yMinLabel, yMaxLabel;

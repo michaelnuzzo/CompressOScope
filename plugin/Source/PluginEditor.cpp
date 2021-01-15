@@ -32,8 +32,8 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
     window.setTop(padding);
 
     // initialize display buffer
-    windowBuffer.setSize(3, window.getWidth());
-    windowBuffer.clear();
+    displayBuffer.setSize(5, window.getWidth());
+    displayBuffer.clear();
 
     // talk to audio thread
     audioProcessor.setNumPixels(window.getWidth());
@@ -229,15 +229,15 @@ void CompressOScopeAudioProcessorEditor::timerCallback()
 void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 {
     /* read data */
-    if(audioProcessor.displayCollector.getNumUnread() >= windowBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue())
+    if(audioProcessor.displayCollector.getNumUnread() >= displayBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue())
     {
-        audioProcessor.displayCollector.readHead(windowBuffer);
+        audioProcessor.displayCollector.readHead(displayBuffer);
     }
 
     int w        = window.getWidth() - 1;
     int h        = window.getHeight() - 1;
     int x_left   = window.getX();
-    int x_right  = window.getRight();
+    int x_right  = x_left + w;
     int y_bottom = window.getY();
     int y_top    = y_bottom + h;
     int fh       = int(f.getHeight()); // font height
@@ -246,6 +246,12 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     auto yMin = float(yMinKnob.getValue());
     auto yMax = float(yMaxKnob.getValue());
     juce::String txt;
+
+    auto val2Coord = [&](float v)
+    {
+        return juce::jlimit(y_bottom, y_top, y_bottom + int(juce::jmap(v, 1.f, -1.f, 0.f, float(h))));
+    };
+
 
     /* draw axes */
 
@@ -260,7 +266,7 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     for(float i = 0; i < numXTicks; i++)
     {
         float scale = i/(numXTicks-1);
-        int xPos = x_left + int(scale * w);
+        int xPos = x_right - int(scale * w);
         g.drawRect(xPos, y_top, 1, tickSize); // tick
         txt = juce::String(scale * timeKnob.getValue(), 4);
         g.drawText(txt, xPos - 17, y_top + 15, f.getStringWidth("0.0000"), fh, juce::Justification::horizontallyCentred); // tick mark
@@ -312,21 +318,84 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
         for(size_t ch = 0; ch < size_t(audioProcessor.NUM_CH); ch++)
         {
             g.setColour(palette[ch]);
-            auto data = windowBuffer.getReadPointer(int(ch));
+            auto data = displayBuffer.getReadPointer(int(ch));
+            auto data_min = displayBuffer.getReadPointer(int(ch) + 3);
             float gain = juce::Decibels::decibelsToGain(float(gainKnobs[ch]->getValue()));
+
 
             for (int i = 1; i < w; i++)
             {
-                float val1 = juce::jmap(data[i  ] * gain, 1.f, -1.f, 0.f, float(h));
-                float val2 = juce::jmap(data[i+1] * gain, 1.f, -1.f, 0.f, float(h));
+                auto val          = (data    [i  ]) * gain;
+                auto val_next     = (data    [i+1]) * gain;
+                auto val_min      = (data_min[i  ]) * gain;
+                auto val_min_next = (data_min[i+1]) * gain;
 
                 int x1 = i + x_left;
-                int y1 = juce::jlimit(y_bottom, y_top, y_bottom + int(val1));
-                int x2 = i + 1 + x_left;
-                int y2 = juce::jlimit(y_bottom, y_top, y_bottom + int(val2));
 
-                g.drawLine (x1,y1,x2,y2);
-//                g.fillRect(int(x1), int(y1), 1, 1);
+                if(!isnan(val_min))
+                {
+                    auto d1 = val;
+                    auto d2 = val_min;
+
+                    if(!isnan(val_min_next))
+                    {
+                        if(val < val_min_next)
+                        {
+                            d1 = val_min_next;
+                        }
+                        if(val_min > val_next)
+                        {
+                            d2 = val_next;
+                        }
+                    }
+                    else
+                    {
+                        if(val < val_next)
+                        {
+                            d1 = val_next;
+                        }
+                        if(val_min > val_next)
+                        {
+                            d2 = val_next;
+                        }
+                    }
+
+                    auto y1 = val2Coord(d2);
+                    auto y2 = val2Coord(d1);
+
+                    if(y1 < y2)
+                    {
+                        std::swap(y1,y2);
+                    }
+
+                    g.fillRect(x1, y2, 1, 1+(y1-y2));
+                }
+                else
+                {
+                    auto d1 = val;
+                    auto d2 = val_next;
+
+                    if(!isnan(val_min_next))
+                    {
+                        if(val < val_min_next)
+                        {
+                            d2 = val_min_next;
+                            if(val > val_next)
+                            {
+                                d1 = val_next;
+                            }
+                        }
+                    }
+
+                    auto y1 = val2Coord(d1);
+                    auto y2 = val2Coord(d2);
+
+                    if(y1 < y2)
+                    {
+                        std::swap(y1,y2);
+                    }
+                    g.fillRect(x1, y2, 1, 1+(y1-y2));
+                }
             }
         }
     }
@@ -334,7 +403,7 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     {
         // draw data
         g.setColour(palette[2]);
-        auto comp = windowBuffer.getReadPointer(2);
+        auto comp = displayBuffer.getReadPointer(2);
 
         for (int i = 1; i < w; i++)
         {
@@ -343,13 +412,15 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 
             int x1 = i + x_left;
             int y1 = juce::jlimit(y_bottom, y_top, y_bottom + int(val1));
-            int x2 = i + 1 + x_left;
             int y2 = juce::jlimit(y_bottom, y_top, y_bottom + int(val2));
 
             if(comp[i] > 0 && comp[i + 1] > 0)
             {
-                g.drawLine (x1,y1,x2,y2);
-//                g.fillRect(x1, y1, 1, 1); // draw pixel
+                if(y1 < y2)
+                {
+                    std::swap(y1,y2);
+                }
+                g.fillRect(x1, y2, 1, 1+(y1-y2)); // draw pixel
             }
         }
     }

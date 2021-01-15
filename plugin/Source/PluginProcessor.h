@@ -69,7 +69,7 @@ public:
     void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
     void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
     inline void setReady(bool r) {ready = r;}
-    const int NUM_CH = 2; // we require 2 channels to run the compressoscope!
+    const int NUM_CH; // we require 2 channels to run the compressoscope!
 
     ASyncBuffer displayCollector; // we are going to access this from the graphics thread (yes, i know)
 
@@ -77,7 +77,7 @@ private:
     ASyncBuffer audioCollector; // collects raw audio data circularly
     juce::AudioBuffer<float> inBuffer; // stores data read from the audiocollector
     juce::AudioBuffer<float> outBuffer; // stores the processed samples and pushes them to the display collector
-    juce::AudioBuffer<float> copyBuffer;
+    juce::AudioBuffer<float> copyBuffer; // copies from the buffer to the collector
     MedianFilter medianFilter;
     bool smoothing;
     double samplesPerPixel;

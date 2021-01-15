@@ -25,9 +25,10 @@ public:
     void reset();
     void resize(int newSize);
     void resize(int numChannels, int newSize);
-    inline int getNumUnread() {return abstractFifo.getNumReady();}
-    inline int getSpaceLeft() {return abstractFifo.getFreeSpace();}
-    inline int getTotalSize() {return abstractFifo.getTotalSize();}
+    inline int getNumUnread()   {return abstractFifo.getNumReady();}
+    inline int getNumChannels() {return circularBuffer.getNumChannels();}
+    inline int getSpaceLeft()   {return abstractFifo.getFreeSpace();}
+    inline int getTotalSize()   {return abstractFifo.getTotalSize();}
     inline void setIsOverwritable(bool overwrite) {canOverwrite = overwrite;}
 
 private:
