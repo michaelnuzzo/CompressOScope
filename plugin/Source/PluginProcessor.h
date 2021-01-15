@@ -59,16 +59,16 @@ public:
     inline void setNumPixels(int num) {numPixels = num;}
     inline double getNumSamplesPerPixel() {return samplesPerPixel;}
     inline int getState() {return state;}
-    void updateParameters();
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
 
     /* my functions */
 
-    void getMinAndMaxOrdered(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock);
+    void updateParameters();
     void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
-    inline void setReady(bool r) {ready = r;}
+    inline void setGuiReady(bool r) {guiReady = r;}
+    inline bool isDoneProcessing() {return !isInUse;}
     const int NUM_CH; // we require 2 channels to run the compressoscope!
 
     ASyncBuffer displayCollector; // we are going to access this from the graphics thread (yes, i know)
@@ -83,7 +83,8 @@ private:
     double samplesPerPixel;
     int numPixels;
     int state;
-    bool ready;
+    bool guiReady;
+    bool isInUse;
     unsigned long counter;
     bool requiresUpdate;
     juce::AudioProcessorValueTreeState parameters;

@@ -196,7 +196,7 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
     freezeButton.setBounds(      getWidth()-100, getHeight()-spacing*3-gap, 25 , 25);
     smoothingButton.setBounds(   getWidth()-100, getHeight()-spacing*1-gap, 25 , 25);
 
-    audioProcessor.setReady(true);
+    audioProcessor.setGuiReady(true);
 }
 
 CompressOScopeAudioProcessorEditor::~CompressOScopeAudioProcessorEditor()
@@ -229,7 +229,7 @@ void CompressOScopeAudioProcessorEditor::timerCallback()
 void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 {
     /* read data */
-    if(audioProcessor.displayCollector.getNumUnread() >= displayBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue())
+    if(audioProcessor.displayCollector.getNumUnread() >= displayBuffer.getNumSamples() && !freezeButton.getToggleStateValue().getValue() && audioProcessor.isDoneProcessing())
     {
         audioProcessor.displayCollector.readHead(displayBuffer);
     }
