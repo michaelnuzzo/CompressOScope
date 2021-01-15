@@ -25,6 +25,7 @@ public:
     void resized() override;
 
     void plot(juce::Graphics& g);
+    void prepareFilledLine(float v, float vNext, float vMin, float vMinNext, float &out1, float &out2);
 
 private:
     void timerCallback() override;

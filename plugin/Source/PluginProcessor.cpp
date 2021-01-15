@@ -21,11 +21,11 @@ CompressOScopeAudioProcessor::CompressOScopeAudioProcessor()
                      #endif
                        )
 #endif
-                    , NUM_CH(2), displayCollector(NUM_CH * 2 + 1, 1), audioCollector(NUM_CH + 1, 1), medianFilter(1), guiReady(false), isInUse(false)
+                    , NUM_CH(2), displayCollector((NUM_CH + 1) * 2, 1), audioCollector(NUM_CH + 1, 1), medianFilter(1), guiReady(false), isInUse(false)
                     , parameters(*this, nullptr, "Parameters", createParameters())
 {
     inBuffer.setSize(NUM_CH + 1, 1);
-    outBuffer.setSize(NUM_CH * 2 + 1, 1);
+    outBuffer.setSize((NUM_CH + 1) * 2, 1);
     copyBuffer.setSize(NUM_CH + 1, 1);
 
     displayCollector.setIsOverwritable(true);
@@ -148,7 +148,6 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-
     if(requiresUpdate)
     {
         updateParameters();
@@ -184,15 +183,11 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     isInUse = true;
     while(audioCollector.getNumUnread() > inBuffer.getNumSamples())
     {
-
         auto inBlock = juce::dsp::AudioBlock<float>(inBuffer); // used to process samples read from collector
         auto outBlock = juce::dsp::AudioBlock<float>(outBuffer); // used to collect processed samples and push to the display
-        auto audioInBlock = juce::dsp::AudioBlock<float>(inBlock).getSubsetChannelBlock(0, size_t(NUM_CH));
-        auto audioOutBlock = juce::dsp::AudioBlock<float>(outBlock).getSubsetChannelBlock(0, size_t(NUM_CH));
-        auto rangeOutBlock = outBlock.getSubsetChannelBlock(3, size_t(NUM_CH));
-        rangeOutBlock.fill(NAN);
         int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
         int numToWrite;
+        outBlock.fill(NAN);
 
         /* process zoomed audio data */
 
@@ -200,26 +195,25 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
         if(state == 1 || (state == 2 && numToRead == 1))
         {
             audioCollector.pop(inBlock,numToRead,numToRead);
-            audioInBlock = audioInBlock.getSubBlock(0, 1);
-            audioOutBlock = audioOutBlock.getSubBlock(0, 1);
-            audioOutBlock.copyFrom(audioInBlock);
+            inBlock = inBlock.getSubBlock(0, 1);
+            outBlock = outBlock.getSubBlock(0, 1);
+            outBlock.copyFrom(inBlock);
             numToWrite = 1;
         }
         // samples/pixels is >1
         else if(state == 2)
         {
             audioCollector.pop(inBlock,numToRead,numToRead);
-            audioInBlock = audioInBlock.getSubBlock(0, size_t(numToRead));
-            audioOutBlock = audioOutBlock.getSubBlock(0, 1);
-            rangeOutBlock = rangeOutBlock.getSubBlock(0, 1);
+            inBlock = inBlock.getSubBlock(0, size_t(numToRead));
 
-            for(size_t ch = 0; ch < size_t(NUM_CH); ch++)
+            for(size_t ch = 0; ch < size_t(NUM_CH + 1); ch++)
             {
-                auto curAudioCh = audioInBlock.getSubsetChannelBlock(ch, 1);
+                auto curAudioCh = inBlock.getSubsetChannelBlock(ch, 1);
                 juce::Range<float> minmax = curAudioCh.findMinAndMax();
-                audioOutBlock.setSample(int(ch), 0, minmax.getStart());
-                rangeOutBlock.setSample(int(ch), 0, minmax.getEnd());
+                outBlock.setSample(int(ch)               , 0, minmax.getStart());
+                outBlock.setSample(int(ch) + (NUM_CH + 1), 0, minmax.getEnd());
             }
+
             numToWrite = 1;
         }
         // samples/pixels is <1
@@ -228,25 +222,12 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             numToRead = 2;
             audioCollector.pop(inBlock,numToRead,numToRead - 1);
             numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-            audioOutBlock = audioOutBlock.getSubBlock(0, size_t(numToWrite));
-            interpolate(audioInBlock, audioOutBlock, numToWrite, 1);
+            outBlock = outBlock.getSubsetChannelBlock(0, size_t(NUM_CH + 1));
+            interpolate(inBlock, outBlock, numToWrite, 1);
         }
         else
         {
             numToWrite = 0;
-        }
-
-        /* process compression data */
-
-        auto compInBlock = inBlock.getSubBlock(0, size_t(numToRead)).getSubsetChannelBlock(2, 1);
-        auto compOutBlock = outBlock.getSubBlock(0, size_t(numToWrite)).getSubsetChannelBlock(2, 1);
-        if(state == 3)
-        {
-            interpolate(compInBlock, compOutBlock, numToWrite, 1);
-        }
-        else
-        {
-            compOutBlock.copyFrom(compInBlock);
         }
 
         displayCollector.push(outBuffer,-1,numToWrite);
@@ -257,8 +238,6 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             displayCollector.trim(1);
         }
 
-        inBuffer.clear();
-        outBuffer.clear();
         counter++;
     }
     isInUse = false;

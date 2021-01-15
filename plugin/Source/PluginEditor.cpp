@@ -32,7 +32,7 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
     window.setTop(padding);
 
     // initialize display buffer
-    displayBuffer.setSize(5, window.getWidth());
+    displayBuffer.setSize(audioProcessor.displayCollector.getNumChannels(), window.getWidth());
     displayBuffer.clear();
 
     // talk to audio thread
@@ -247,12 +247,6 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     auto yMax = float(yMaxKnob.getValue());
     juce::String txt;
 
-    auto val2Coord = [&](float v)
-    {
-        return juce::jlimit(y_bottom, y_top, y_bottom + int(juce::jmap(v, 1.f, -1.f, 0.f, float(h))));
-    };
-
-
     /* draw axes */
 
     // draw zoom level
@@ -314,6 +308,11 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 
     if(!compMode) // oscilloscope mode
     {
+        auto valToCoord = [&](float v)
+        {
+            return juce::jlimit(y_bottom, y_top, y_bottom + int(juce::jmap(v, 1.f, -1.f, 0.f, float(h))));
+        };
+
         // draw data
         for(size_t ch = 0; ch < size_t(audioProcessor.NUM_CH); ch++)
         {
@@ -322,97 +321,48 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
             auto data_min = displayBuffer.getReadPointer(int(ch) + 3);
             float gain = juce::Decibels::decibelsToGain(float(gainKnobs[ch]->getValue()));
 
-
             for (int i = 1; i < w; i++)
             {
-                auto val          = (data    [i  ]) * gain;
-                auto val_next     = (data    [i+1]) * gain;
-                auto val_min      = (data_min[i  ]) * gain;
-                auto val_min_next = (data_min[i+1]) * gain;
+                float d1;
+                float d2;
+
+                prepareFilledLine(data[i] * gain, data[i+1] * gain, data_min[i] * gain, data_min[i+1] * gain, d1, d2);
 
                 int x1 = i + x_left;
+                auto y1 = valToCoord(d1);
+                auto y2 = valToCoord(d2);
 
-                if(!isnan(val_min))
+                if(y1 < y2)
                 {
-                    auto d1 = val;
-                    auto d2 = val_min;
-
-                    if(!isnan(val_min_next))
-                    {
-                        if(val < val_min_next)
-                        {
-                            d1 = val_min_next;
-                        }
-                        if(val_min > val_next)
-                        {
-                            d2 = val_next;
-                        }
-                    }
-                    else
-                    {
-                        if(val < val_next)
-                        {
-                            d1 = val_next;
-                        }
-                        if(val_min > val_next)
-                        {
-                            d2 = val_next;
-                        }
-                    }
-
-                    auto y1 = val2Coord(d2);
-                    auto y2 = val2Coord(d1);
-
-                    if(y1 < y2)
-                    {
-                        std::swap(y1,y2);
-                    }
-
-                    g.fillRect(x1, y2, 1, 1+(y1-y2));
+                    std::swap(y1,y2);
                 }
-                else
-                {
-                    auto d1 = val;
-                    auto d2 = val_next;
 
-                    if(!isnan(val_min_next))
-                    {
-                        if(val < val_min_next)
-                        {
-                            d2 = val_min_next;
-                            if(val > val_next)
-                            {
-                                d1 = val_next;
-                            }
-                        }
-                    }
-
-                    auto y1 = val2Coord(d1);
-                    auto y2 = val2Coord(d2);
-
-                    if(y1 < y2)
-                    {
-                        std::swap(y1,y2);
-                    }
-                    g.fillRect(x1, y2, 1, 1+(y1-y2));
-                }
+                g.fillRect(x1, y2, 1, 1+(y1-y2));
             }
         }
     }
     else // compression mode
     {
+        auto valToCoord = [&](float v)
+        {
+            return juce::jlimit(y_bottom, y_top, y_bottom + int(juce::jmap(juce::Decibels::gainToDecibels(v), yMax, yMin, 0.f, float(h))));
+        };
+        
         // draw data
         g.setColour(palette[2]);
         auto comp = displayBuffer.getReadPointer(2);
+        auto comp_min = displayBuffer.getReadPointer(2 + 3);
 
         for (int i = 1; i < w; i++)
         {
-            float val1 = juce::jmap(juce::Decibels::gainToDecibels(comp[i]  ), yMax, yMin, 0.f, float(h));
-            float val2 = juce::jmap(juce::Decibels::gainToDecibels(comp[i+1]), yMax, yMin, 0.f, float(h));
+            float d1;
+            float d2;
+
+            prepareFilledLine(comp[i], comp[i+1], comp_min[i], comp_min[i+1], d1, d2);
 
             int x1 = i + x_left;
-            int y1 = juce::jlimit(y_bottom, y_top, y_bottom + int(val1));
-            int y2 = juce::jlimit(y_bottom, y_top, y_bottom + int(val2));
+            int y1 = valToCoord(d1);
+            int y2 = valToCoord(d2);
 
             if(comp[i] > 0 && comp[i + 1] > 0)
             {
@@ -420,11 +370,60 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
                 {
                     std::swap(y1,y2);
                 }
-                g.fillRect(x1, y2, 1, 1+(y1-y2)); // draw pixel
+                g.fillRect(x1, y2, 1, 1+(y1-y2));
             }
         }
     }
 
     g.setColour(juce::Colours::lightgrey);
     g.drawRect(window);
+}
+
+void CompressOScopeAudioProcessorEditor::prepareFilledLine(float v, float vNext, float vMin, float vMinNext, float &out1, float &out2)
+{
+    if(!isnan(vMin))
+    {
+        out1 = v;
+        out2 = vMin;
+
+        if(!isnan(vMinNext))
+        {
+            if(v < vMinNext)
+            {
+                out1 = vMinNext;
+            }
+            if(vMin > vNext)
+            {
+                out2 = vNext;
+            }
+        }
+        else
+        {
+            if(v < vNext)
+            {
+                out1 = vNext;
+            }
+            if(vMin > vNext)
+            {
+                out2 = vNext;
+            }
+        }
+    }
+    else
+    {
+        out1 = v;
+        out2 = vNext;
+
+        if(!isnan(vMinNext))
+        {
+            if(v < vMinNext)
+            {
+                out2 = vMinNext;
+                if(v > vNext)
+                {
+                    out1 = vNext;
+                }
+            }
+        }
+    }
 }
