@@ -55,22 +55,21 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    inline void setUpdate() {requiresUpdate = true;}
-    inline void setNumPixels(int num) {numPixels = num;}
-    inline double getNumSamplesPerPixel() {return samplesPerPixel;}
-    inline int getState() {return state;}
-
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     juce::AudioProcessorValueTreeState& getParameters() {return parameters;}
 
     /* my functions */
+    inline void setUpdate() {requiresUpdate = true;}
+    inline void setNumPixels(int num) {numPixels = num;}
+    inline void setGuiReady(bool r) {guiReady = r;}
+    inline double getNumSamplesPerPixel() {return samplesPerPixel;}
+    inline int getState() {return state;}
+    inline bool isDoneProcessing() {return !isInUse;}
 
     void updateParameters();
     void interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type = 0);
-    inline void setGuiReady(bool r) {guiReady = r;}
-    inline bool isDoneProcessing() {return !isInUse;}
-    const int NUM_CH; // we require 2 channels to run the compressoscope!
 
+    const int NUM_CH; // we require 2 channels to run the compressoscope!
     ASyncBuffer displayCollector; // we are going to access this from the graphics thread (yes, i know)
 
 private:
@@ -78,16 +77,16 @@ private:
     juce::AudioBuffer<float> inBuffer; // stores data read from the audiocollector
     juce::AudioBuffer<float> outBuffer; // stores the processed samples and pushes them to the display collector
     juce::AudioBuffer<float> copyBuffer; // copies from the buffer to the collector
-    MedianFilter medianFilter;
-    bool smoothing;
+    MedianFilter medianFilter; // smooths the data
+    bool smoothing; // is smoothing on?
     double samplesPerPixel;
-    int numPixels;
-    int state;
-    bool guiReady;
-    bool isInUse;
+    int numPixels; // width of the waveform display window
+    int state; // switches between methods of converting the audio data to display data
+    bool guiReady; // has the gui been initialized?
+    bool isInUse; // are we writing to the display window?
     unsigned long counter;
-    bool requiresUpdate;
-    juce::AudioProcessorValueTreeState parameters;
+    bool requiresUpdate; // have the VST parameters changed?
+    juce::AudioProcessorValueTreeState parameters; // stores the current state of the VST for saving
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressOScopeAudioProcessor)

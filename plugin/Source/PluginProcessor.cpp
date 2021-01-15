@@ -123,7 +123,7 @@ bool CompressOScopeAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
     return true;
   #else
     // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
+    // In this template code we only support stereo.
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
 
         return false;
@@ -185,9 +185,11 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     {
         auto inBlock = juce::dsp::AudioBlock<float>(inBuffer); // used to process samples read from collector
         auto outBlock = juce::dsp::AudioBlock<float>(outBuffer); // used to collect processed samples and push to the display
+        auto outValBlock = outBlock.getSubsetChannelBlock(0, size_t(NUM_CH + 1));
+        auto outMinBlock = outBlock.getSubsetChannelBlock(size_t(NUM_CH + 1), size_t(NUM_CH + 1));
+        outMinBlock.fill(NAN);
         int numToRead = int(counter*(samplesPerPixel)) - int((counter-1)*(samplesPerPixel));
         int numToWrite;
-        outBlock.fill(NAN);
 
         /* process zoomed audio data */
 
@@ -196,8 +198,8 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
         {
             audioCollector.pop(inBlock,numToRead,numToRead);
             inBlock = inBlock.getSubBlock(0, 1);
-            outBlock = outBlock.getSubBlock(0, 1);
-            outBlock.copyFrom(inBlock);
+            outValBlock = outValBlock.getSubBlock(0, 1);
+            outValBlock.copyFrom(inBlock);
             numToWrite = 1;
         }
         // samples/pixels is >1
@@ -208,12 +210,11 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
             for(size_t ch = 0; ch < size_t(NUM_CH + 1); ch++)
             {
-                auto curAudioCh = inBlock.getSubsetChannelBlock(ch, 1);
-                juce::Range<float> minmax = curAudioCh.findMinAndMax();
-                outBlock.setSample(int(ch)               , 0, minmax.getStart());
-                outBlock.setSample(int(ch) + (NUM_CH + 1), 0, minmax.getEnd());
+                auto curCh = inBlock.getSubsetChannelBlock(ch, 1);
+                juce::Range<float> minmax = curCh.findMinAndMax();
+                outValBlock.setSample(int(ch), 0, minmax.getStart());
+                outMinBlock.setSample(int(ch), 0, minmax.getEnd());
             }
-
             numToWrite = 1;
         }
         // samples/pixels is <1
@@ -222,8 +223,7 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             numToRead = 2;
             audioCollector.pop(inBlock,numToRead,numToRead - 1);
             numToWrite = int(counter*(1/samplesPerPixel)) - int((counter-1)*(1/samplesPerPixel));
-            outBlock = outBlock.getSubsetChannelBlock(0, size_t(NUM_CH + 1));
-            interpolate(inBlock, outBlock, numToWrite, 1);
+            interpolate(inBlock, outValBlock, numToWrite, 1);
         }
         else
         {
@@ -278,6 +278,7 @@ void CompressOScopeAudioProcessor::updateParameters()
     else
     {
         state = 3;
+        // in this case, we interpolate between the two samples that we have
         inBuffer.setSize(inBuffer.getNumChannels(), 2);
         outBuffer.setSize(displayCollector.getNumChannels(), int(1/(samplesPerPixel) + 2)); // stores interpolated samples
     }
@@ -303,12 +304,10 @@ void CompressOScopeAudioProcessor::updateParameters()
     requiresUpdate = false;
 }
 
-void CompressOScopeAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float numInterps, int type)
+void CompressOScopeAudioProcessor::interpolate(const juce::dsp::AudioBlock<float> inBlock, juce::dsp::AudioBlock<float>& outBlock, float n, int type)
 {
     jassert(inBlock.getNumChannels() == outBlock.getNumChannels());
-//    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 1);
-
-    auto n = outBlock.getNumSamples();
+    jassert(inBlock.getNumSamples() == 2 && outBlock.getNumSamples() > 0);
 
     for(size_t ch = 0; ch < inBlock.getNumChannels(); ch++)
     {
@@ -323,7 +322,7 @@ void CompressOScopeAudioProcessor::interpolate(const juce::dsp::AudioBlock<float
             }
             else if(type == 1) // linear interpolation
             {
-                po[i] = pi[0] + (pi[1] - pi[0])*float(i)/float(numInterps);
+                po[i] = pi[0] + (pi[1] - pi[0]) * float(i) / float(n);
             }
         }
     }
@@ -334,14 +333,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout CompressOScopeAudioProcessor
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     params.push_back(std::make_unique<juce::AudioParameterFloat>("TIME"     , "Time"     , juce::NormalisableRange<float>(0.0001f, 5.f  , 0.0001f, 1/3.f), 1.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"   , "Filter"   , juce::NormalisableRange<float>(1.f    , 10.f , 0.01f         ), 1.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("FILTER"   , "Filter"   , juce::NormalisableRange<float>(.1f    , 10.f , 0.001f        ), .1f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"    , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"    , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"     , "Y max"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-200.f , 20.f , 0.001f        ), -60.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"     , "Y max"    , juce::NormalisableRange<float>(-100.f , 60.f , 0.001f        ), 0.f  ));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-100.f , 60.f , 0.001f        ), -60.f));
     params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE" , "Comp Mode", false                                                                ));
     params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"   , "Freeze"   , false                                                                ));
-    params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", false                                                                ));
+    params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", true                                                                 ));
 
     return { params.begin(), params.end() };
 }
