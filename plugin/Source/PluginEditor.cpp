@@ -21,9 +21,9 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
     startTimerHz(60);
 
     f = juce::Font("Gill Sans", "Regular", 15.f);
-//    float rescale = 1/6.f;
-//    logo = juce::ImageCache::getFromMemory (BinaryData::logo_png, BinaryData::logo_pngSize);
-//    logo = logo.rescaled(logo.getWidth()*rescale, logo.getHeight()*rescale);
+    float rescale = 1/8.f;
+    logo = juce::ImageCache::getFromMemory (BinaryData::logo_white_png, BinaryData::logo_white_pngSize);
+    logo = logo.rescaled(int(logo.getWidth()*rescale), int(logo.getHeight()*rescale));
 
     // oscilloscope window
     int padding = 50;
@@ -212,9 +212,10 @@ void CompressOScopeAudioProcessorEditor::paint (juce::Graphics& g)
 
     plot(g);
 
-//    float xPos = 50;
-//    float yPos = getHeight()-110;
-//    g.drawImageAt(logo, xPos, yPos);
+    int xPos = 20;
+    int yPos = -20 + getHeight() - int(logo.getHeight()) - int(f.getHeight());
+    g.drawImageAt(logo, xPos, yPos);
+    write(ProjectInfo::versionString, xPos + logo.getWidth(), yPos + logo.getHeight() + 5, juce::Justification::right, g);
 }
 
 void CompressOScopeAudioProcessorEditor::resized()
@@ -224,6 +225,15 @@ void CompressOScopeAudioProcessorEditor::resized()
 void CompressOScopeAudioProcessorEditor::timerCallback()
 {
     repaint();
+}
+
+void CompressOScopeAudioProcessorEditor::write(juce::String txt, int xPos, int yPos, juce::Justification j, juce::Graphics& g)
+{
+    if(j == juce::Justification::right)
+    {
+        xPos -= f.getStringWidth(txt);
+    }
+    g.drawText(txt, xPos, yPos, f.getStringWidth(txt), int(f.getHeight()), j);
 }
 
 void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
@@ -247,6 +257,10 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     auto compMode = compressionButton.getToggleStateValue().getValue();
     auto yMin = float(yMinKnob.getValue());
     auto yMax = float(yMaxKnob.getValue());
+    auto jLeft  = juce::Justification::left;
+    auto jCtr   = juce::Justification::horizontallyCentred;
+    auto jRight = juce::Justification::right;
+
     juce::String txt;
 
     /* draw axes */
@@ -255,20 +269,18 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     txt = "Zoom = ";
     txt += juce::String(100.f * 1.f / audioProcessor.getNumSamplesPerPixel(), 1);
     txt += "%";
-    g.drawText(juce::String(txt), r - 130, t + 50, f.getStringWidth(txt), fh, juce::Justification::left);
+    write(txt, r - 130, t + 50, jLeft, g);
 
     // draw x axis
     float numXTicks = 5;
     for(float i = 0; i < numXTicks; i++)
     {
         float scale = i / (numXTicks - 1);
-        int xPos = r - int(scale) * w;
+        int xPos = r - int(scale * w);
         g.drawRect(xPos, t, 1, tickSize); // tick
-        txt = juce::String(scale * timeKnob.getValue(), 4);
-        g.drawText(txt, xPos - 17, t + 15, f.getStringWidth("0.0000"), fh, juce::Justification::horizontallyCentred); // tick mark
+        write(juce::String(scale * timeKnob.getValue(), 4), xPos - 17, t + 15, jCtr, g);
     }
-    txt = "Time (s)";
-    g.drawText(txt, l + w/2 - 25, t + 40, f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred); // label
+    write("Time (s)", l + w/2 - 25, t + 40, jCtr, g);
 
     // draw y-axis
     if(!compMode) // oscilloscope mode
@@ -278,11 +290,9 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
         {
             int yPos = b + int(i * h / (numYTicks - 1));
             g.drawRect(l - tickSize, yPos, tickSize, 1); // tick
-            txt = juce::String(1 - i * 0.5);
-            g.drawText(txt, l - 35, yPos - fh / 2, f.getStringWidth("-0.5"), fh, juce::Justification::right); // tick mark
+            write(juce::String(1 - i * 0.5), l - 15, yPos - fh / 2, jRight, g);
         }
-        txt = "Magnitude";
-        g.drawText(txt, l - 100, b + int(h/2.f - fh/2.f), f.getStringWidth(txt), fh, juce::Justification::right); // label
+        write("Magnitude", l - 100, b + int(h/2.f - fh/2.f), jCtr, g);
     }
     else // compression mode
     {
@@ -299,11 +309,10 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
             g.drawRect(l - tickSize, yPos, tickSize, 1); // tick
             float curTick = (numYTicks - 1 - i) * yMax / (numYTicks - 1) + i * yMin / (numYTicks - 1);
             txt = juce::String(curTick, 3);
-            g.drawText(txt, l - 55, yPos - fh / 2, f.getStringWidth("-00.000"), fh, juce::Justification::right); // tick mark
+            write(txt, l - 15, yPos - fh / 2, jRight, g);
         }
-        txt = "Amplitude";
-        g.drawText(txt     , l - 125, b + int(h / 2.f) - int(fh / 2.f)      , f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred); // label
-        g.drawText("(dBFS)", l - 125, b + int(h / 2.f) + int(fh * 2.f / 3.f), f.getStringWidth(txt), fh, juce::Justification::horizontallyCentred);
+        write("Amplitude", l - 125, b + int(h / 2.f) - int(fh / 2.f)      , jCtr, g);
+        write("(dBFS)"   , l - 125, b + int(h / 2.f) + int(fh * 2.f / 3.f), jCtr, g);
     }
 
     /* draw data */
