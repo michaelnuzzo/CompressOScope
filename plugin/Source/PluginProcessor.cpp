@@ -150,6 +150,8 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
     if(requiresUpdate)
     {
+        if(!guiReady) // if gui isn't ready then samplesPerPixel will be junk
+            return;
         updateParameters();
     }
 
@@ -251,8 +253,6 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
 void CompressOScopeAudioProcessor::updateParameters()
 {
-    while(!guiReady){} // if gui isn't ready then parameters will be junk
-
     //==========================================================================================//
 
     smoothing = bool(*parameters.getRawParameterValue("SMOOTHING"));
