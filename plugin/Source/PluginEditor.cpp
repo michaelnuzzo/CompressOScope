@@ -238,6 +238,8 @@ void CompressOScopeAudioProcessorEditor::write(juce::String txt, int xPos, int y
 
 void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
 {
+    //==========================================================================================//
+
     /* read data */
     if(audioProcessor.displayCollector.getNumUnread() >= displayBuffer.getNumSamples() &&
        !freezeButton.getToggleStateValue().getValue() &&
@@ -245,6 +247,10 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     {
         audioProcessor.displayCollector.readHead(displayBuffer);
     }
+
+    //==========================================================================================//
+
+    /* initialize variables*/
 
     int w  = window.getWidth() - 1;  // window width
     int h  = window.getHeight() - 1; // window height
@@ -260,8 +266,9 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
     auto jLeft  = juce::Justification::left;
     auto jCtr   = juce::Justification::horizontallyCentred;
     auto jRight = juce::Justification::right;
-
     juce::String txt;
+
+    //==========================================================================================//
 
     /* draw axes */
 
@@ -314,6 +321,8 @@ void CompressOScopeAudioProcessorEditor::plot(juce::Graphics& g)
         write("Amplitude", l - 125, b + int(h / 2.f) - int(fh / 2.f)      , jCtr, g);
         write("(dBFS)"   , l - 125, b + int(h / 2.f) + int(fh * 2.f / 3.f), jCtr, g);
     }
+
+    //==========================================================================================//
 
     /* draw data */
 

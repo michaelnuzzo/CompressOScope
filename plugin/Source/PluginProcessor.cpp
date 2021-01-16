@@ -153,6 +153,10 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
         updateParameters();
     }
 
+    //==========================================================================================//
+
+    /* save incoming audio */
+
     auto rawBuffer = juce::dsp::AudioBlock<float>(buffer); // the incoming buffer
     auto copyBlock = juce::dsp::AudioBlock<float>(copyBuffer).getSubBlock(0, size_t(buffer.getNumSamples())); // storage container for the audio + compression data
     auto audioCopyBlock = copyBlock.getSubsetChannelBlock(0, size_t(NUM_CH));
@@ -179,7 +183,9 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
     audioCollector.push(copyBlock);
 
-    // save audio data
+    //==========================================================================================//
+
+    /* process data and send to display */
     isInUse = true;
     while(audioCollector.getNumUnread() > inBuffer.getNumSamples())
     {
@@ -245,9 +251,10 @@ void CompressOScopeAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 
 void CompressOScopeAudioProcessor::updateParameters()
 {
-    while(!guiReady){} // if gui isn't ready then samplesPerPixel will be junk
+    while(!guiReady){} // if gui isn't ready then parameters will be junk
 
-    samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
+    //==========================================================================================//
+
     smoothing = bool(*parameters.getRawParameterValue("SMOOTHING"));
     if(smoothing)
     {
@@ -257,6 +264,10 @@ void CompressOScopeAudioProcessor::updateParameters()
     {
         medianFilter.setOrder(1);
     }
+
+    //==========================================================================================//
+
+    samplesPerPixel = *parameters.getRawParameterValue("TIME")/numPixels * getSampleRate();
 
     // one sample per pixel
     if(samplesPerPixel == 1)
@@ -282,6 +293,8 @@ void CompressOScopeAudioProcessor::updateParameters()
         inBuffer.setSize(inBuffer.getNumChannels(), 2);
         outBuffer.setSize(displayCollector.getNumChannels(), int(1/(samplesPerPixel) + 2)); // stores interpolated samples
     }
+
+    //==========================================================================================//
 
     // if the window size has been changed
     if(numPixels*2 != displayCollector.getTotalSize() && numPixels > 0)
@@ -337,7 +350,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CompressOScopeAudioProcessor
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN1"    , "Gain 1"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN2"    , "Gain 2"   , juce::NormalisableRange<float>(0.f    , 100.f, 0.001f        ), 0.f  ));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("YMAX"     , "Y max"    , juce::NormalisableRange<float>(-100.f , 60.f , 0.001f        ), 0.f  ));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-100.f , 60.f , 0.001f        ), -60.f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("YMIN"     , "Y min"    , juce::NormalisableRange<float>(-100.f , 60.f , 0.001f        ), -54.f));
     params.push_back(std::make_unique<juce::AudioParameterBool >("COMPMODE" , "Comp Mode", false                                                                ));
     params.push_back(std::make_unique<juce::AudioParameterBool >("FREEZE"   , "Freeze"   , false                                                                ));
     params.push_back(std::make_unique<juce::AudioParameterBool >("SMOOTHING", "Smoothing", true                                                                 ));
