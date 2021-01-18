@@ -7,7 +7,7 @@
   <MAINGROUP id="KbAKKg" name="CompressOScope">
     <FILE id="KhcRvd" name="CompressOScope.png" compile="0" resource="1"
           file="../Build and Release/Icon/CompressOScope.png"/>
-    <FILE id="rsWJjf" name="logo_white.png" compile="0" resource="1" file="../Build and Release/Icon/logo/logo_white.png"/>
+    <FILE id="VSRS6V" name="logo_light.png" compile="0" resource="1" file="../Build and Release/Icon/logo/logo_light.png"/>
     <GROUP id="{B5482F00-475E-E2F6-AC85-071AE2BD53C0}" name="Source">
       <FILE id="LRvrkx" name="MedianFilter.cpp" compile="1" resource="0"
             file="Source/MedianFilter.cpp"/>

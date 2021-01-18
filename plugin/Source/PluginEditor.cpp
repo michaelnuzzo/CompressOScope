@@ -22,7 +22,7 @@ CompressOScopeAudioProcessorEditor::CompressOScopeAudioProcessorEditor (Compress
 
     f = juce::Font("Gill Sans", "Regular", 15.f);
     float rescale = 1/8.f;
-    logo = juce::ImageCache::getFromMemory (BinaryData::logo_white_png, BinaryData::logo_white_pngSize);
+    logo = juce::ImageCache::getFromMemory (BinaryData::logo_light_png, BinaryData::logo_light_pngSize);
     logo = logo.rescaled(int(logo.getWidth()*rescale), int(logo.getHeight()*rescale));
 
     // oscilloscope window

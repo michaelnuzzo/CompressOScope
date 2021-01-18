@@ -11,8 +11,8 @@ namespace BinaryData
     extern const char*   CompressOScope_png;
     const int            CompressOScope_pngSize = 126934;
 
-    extern const char*   logo_white_png;
-    const int            logo_white_pngSize = 20851;
+    extern const char*   logo_light_png;
+    const int            logo_light_pngSize = 20474;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
     const int namedResourceListSize = 2;
